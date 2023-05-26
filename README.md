@@ -1,4 +1,4 @@
-# Yolo8 multi-object, segmentation and pose tracking - countinh - speed estimation using Yolov8
+# Yolo8 multi-object, segmentation and pose tracking - countinh - speed estimation
 
 
 <div align="center">

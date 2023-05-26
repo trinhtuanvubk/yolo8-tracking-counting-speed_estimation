@@ -3,7 +3,7 @@
 
 <div align="center">
   <p>
-  <img src="./figure/demo_short.gif" width="700"/>
+  <img src="./figure/demo_speed_short.gif" width="700"/>
   </p>
   <br>
 </div>

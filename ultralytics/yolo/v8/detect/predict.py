@@ -21,19 +21,21 @@ data_deque = {}
 object_counter = {}
 object_counter1 = {}
 line = [(100, 500), (1050, 500)]
+# line_speed_start = [(50, 500), (1100, 500)]
+# line_speed_end = [(50, 800), (1100, 800)]
+speed_line_queue = {}
 
-# speed_line_queue = {}
-# def estimatespeed(Location1, Location2):
-#     #Euclidean Distance Formula
-#     d_pixel = math.sqrt(math.pow(Location2[0] - Location1[0], 2) + math.pow(Location2[1] - Location1[1], 2))
-#     # defining thr pixels per meter
-#     ppm = 8
-#     d_meters = d_pixel/ppm
-#     time_constant = 15*3.6
-#     #distance = speed/time
-#     speed = d_meters * time_constant
+def estimatespeed(Location1, Location2):
+    #Euclidean Distance Formula
+    d_pixel = math.sqrt(math.pow(Location2[0] - Location1[0], 2) + math.pow(Location2[1] - Location1[1], 2))
+    # defining thr pixels per meter
+    ppm = 8
+    d_meters = d_pixel/ppm
+    time_constant = 15*3.6
+    #distance = speed/time
+    speed = d_meters * time_constant
 
-#     return int(speed)
+    return int(speed)
 ##########################################################################################
 def xyxy_to_xywh(*xyxy):
     """" Calculates the relative bounding box from absolute pixel values. """
@@ -172,8 +174,8 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
 
         # create new buffer for new object
         if id not in data_deque:  
-          data_deque[id] = deque(maxlen= 64)
-        #   speed_line_queue[id] = []
+            data_deque[id] = deque(maxlen= 64)
+            speed_line_queue[id] = []
         color = compute_color_for_labels(object_id[i])
         obj_name = names[object_id[i]]
         label = '{}{:d}'.format("", id) + ":"+ '%s' % (obj_name)
@@ -185,8 +187,8 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
             direction = get_direction(data_deque[id][0], data_deque[id][1])
             print(direction)
             print(data_deque[id])
-            # object_speed = estimatespeed(data_deque[id][1], data_deque[id][0])
-            # speed_line_queue[id].append(object_speed)
+            object_speed = estimatespeed(data_deque[id][1], data_deque[id][0])
+            speed_line_queue[id].append(object_speed)
             if intersect(data_deque[id][0], data_deque[id][1], line[0], line[1]):
                 print("intered")
                 cv2.line(img, line[0], line[1], (255, 255, 255), 3)
@@ -201,10 +203,10 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
                     else:
                         object_counter1[obj_name] += 1
 
-        # try:
-        #     label = label + " " + str(sum(speed_line_queue[id])//len(speed_line_queue[id])) + "km/h"
-        # except:
-        #     pass
+        try:
+            label = label + " " + str(sum(speed_line_queue[id])//len(speed_line_queue[id])) + "km/h"
+        except:
+            pass
         UI_box(box, img, label=label, color=color, line_thickness=2)
         # draw trail
         for i in range(1, len(data_deque[id])):

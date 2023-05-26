@@ -20,23 +20,23 @@ Everything is designed with simplicity and flexibility in mind. We don't hyperfo
 ## Installation
 Install with pip:
 ```
-git clone https://github.com/mikel-brostrom/yolov8_tracking.git
-cd yolov8_tracking
+git clone https://github.com/trinhtuanvubk/yolo8-tracking-counting-speed_estimation.git
+cd yolo8-tracking-counting-speed_estimation
 pip install -r requirements.txt  # install dependencies
 ```
 Install with Docker:
 ```
-git clone https://github.com/mikel-brostrom/yolov8_tracking.git
-cd yolov8_tracking
+git clone https://github.com/trinhtuanvubk/yolo8-tracking-counting-speed_estimation.git
+cd yolov8-tracking-counting-speed_estimation
 docker build -t <image-tag-name> .
-docker run --restart always -itd -v $(pwd):/yolo8-tracking --name <container-name> -w/yolo8-tracking <image-tag-name>
+docker run --restart always -itd -v $(pwd):/yolo8-tracking-counting-speed_estimation --name <container-name> -w/yolo8-tracking-counting-speed_estimation <image-tag-name>
 ```
 If you get errors raised by opencv and ffmpeg, you can pull this image:
 ```
-git clone https://github.com/mikel-brostrom/yolov8_tracking.git
-cd yolov8_tracking
+git clone https://github.com/trinhtuanvubk/yolo8-tracking-counting-speed_estimation.git
+cd yolov8-tracking-counting-speed_estimation
 docker pull trinhtuanvubk/vutt-yolo8-opencv
-docker run --restart always -itd -v $(pwd):/yolo8-tracking --name <container-name> -w/yolo8-tracking trinhtuanvubk/vutt-yolo8-opencv:tracking
+docker run --restart always -itd -v $(pwd):/yolo8-tracking --name <container-name> -w/yolov8-tracking-counting-speed_estimation trinhtuanvubk/vutt-yolo8-opencv:tracking
 ```
 <details>
 <summary>Tutorials</summary>

@@ -10,7 +10,7 @@ videos/
 weights/*.pt
 test_images/
 *.mp4
-
+/test_outputs/
 # evaluation tools folder
 val_utils/
 

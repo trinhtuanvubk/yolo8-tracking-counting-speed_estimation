@@ -7,8 +7,10 @@ import numpy as np
 import cv2
 
 from trackers.multi_tracker_zoo import create_tracker
-from ultralytics.yolo.engine.model import YOLO, TASK_MAP
+from utils.detection_predictor import DetectionPredictor_V2
 
+
+from ultralytics.yolo.engine.model import YOLO, TASK_MAP
 from ultralytics.yolo.utils import LOGGER, SETTINGS, colorstr, ops, is_git_dir
 from ultralytics.yolo.utils.checks import check_imgsz, print_args
 from ultralytics.yolo.utils.files import increment_path
@@ -96,7 +98,8 @@ def run(
     overrides = model.overrides.copy()
     model.predictor = TASK_MAP[model.task][3](overrides=overrides, _callbacks=model.callbacks)
     
-    predictor = model.predictor
+    # predictor = model.predictor
+    predictor = DetectionPredictor_V2()
 
     # https://github.com/ultralytics/ultralytics/blob/main/ultralytics/yolo/engine/model.py
     #model.predictor.setup_model(model=model.model, verbose=False)

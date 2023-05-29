@@ -7,6 +7,8 @@ cache
 # experiment results
 runs/
 videos/
+samples/
+assets/
 weights/*.pt
 test_images/
 *.mp4

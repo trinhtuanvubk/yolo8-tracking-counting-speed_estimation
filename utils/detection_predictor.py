@@ -237,7 +237,7 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
     return img
 
 
-class DetectionPredictor(BasePredictor):
+class DetectionPredictor_V2(BasePredictor):
 
     def get_annotator(self, img):
         return Annotator(img, line_width=self.args.line_width, example=str(self.model.names))
@@ -264,6 +264,7 @@ class DetectionPredictor(BasePredictor):
         return results
 
     def write_results_v2(self, idx, tracker_outputs, results, batch):
+        print("TRINHTUANVU_CODINGGGGGGGGGGGGGGGGGGGg")
         p, im, im0 = batch
         # all_outputs = []
         log_string = ""
@@ -271,11 +272,7 @@ class DetectionPredictor(BasePredictor):
             im = im[None]  # expand for batch dim
         self.seen += 1
         im0 = im0.copy()
-        # if self.webcam:  # batch_size >= 1
-        #     log_string += f'{idx}: '
-        #     frame = self.dataset.count
-        # else:
-        #     frame = getattr(self.dataset, 'frame', 0)
+ 
         if self.source_type.webcam or self.source_type.from_img:  # batch_size >= 1
             log_string += f'{idx}: '
             frame = self.dataset.count
@@ -288,39 +285,11 @@ class DetectionPredictor(BasePredictor):
         log_string += '%gx%g ' % im.shape[2:]  # print string
         self.annotator = self.get_annotator(im0)
 
-        # det = results[idx].boxes.data
-        # print("detttttttttttttttt")
-        # print(det)
-        # # print(det.shape)
-        # # print("result: {}".format(result.keys()))
-        # # print(det)
-        # # all_outputs.append(det)
-        # if len(det) == 0:
-        #     return log_string
-        # for c in det[:, -1].unique():
-        #     n = (det[:, -1] == c).sum()  # detections per class
-        #     log_string += f"{n} {self.model.names[int(c)]}{'s' * (n > 1)}, "
-        # # log_string+=result.verbose()
-        # # write
-        # # gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
-        # xywh_bboxs = []
-        # confs = []
-        # oids = []
-        # # outputs = []
-        # for *xyxy, _, conf, cls in reversed(det):
-        #     x_c, y_c, bbox_w, bbox_h = xyxy_to_xywh(*xyxy)
-        #     xywh_obj = [x_c, y_c, bbox_w, bbox_h]
-        #     xywh_bboxs.append(xywh_obj)
-        #     confs.append([conf.item()])
-        #     oids.append(int(cls))
-        # xywhs = torch.Tensor(xywh_bboxs)
-        # confss = torch.Tensor(confs)
+
         gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]
-        # outputs = deepsort.update(xywhs, confss, oids, im0)
         outputs = tracker_outputs[idx]
         result = results[idx]
-        # print(outputs.shape)
-        # outputs = bytetracker.update(det, im0)
+ 
         if len(outputs) > 0:
             bbox_xyxy = outputs[:, :4]
             identities = outputs[:, -3]
@@ -339,22 +308,3 @@ class DetectionPredictor(BasePredictor):
 
         return log_string
 
-
-
-def predict(cfg=DEFAULT_CFG, use_python=False):
-    """Runs YOLO model inference on input image(s)."""
-    model = cfg.model or 'yolov8n.pt'
-    source = cfg.source if cfg.source is not None else ROOT / 'assets' if (ROOT / 'assets').exists() \
-        else 'https://ultralytics.com/images/bus.jpg'
-
-    args = dict(model=model, source=source)
-    if use_python:
-        from ultralytics import YOLO
-        YOLO(model)(**args)
-    else:
-        predictor = DetectionPredictor(overrides=args)
-        predictor.predict_cli()
-
-
-if __name__ == '__main__':
-    predict()

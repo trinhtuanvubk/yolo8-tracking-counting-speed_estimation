@@ -11,6 +11,7 @@ samples/
 assets/
 weights/*.pt
 test_images/
+ultralytics/
 *.mp4
 /test_outputs/
 # evaluation tools folder

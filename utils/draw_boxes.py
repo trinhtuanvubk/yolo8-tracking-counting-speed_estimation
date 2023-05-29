@@ -152,25 +152,17 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
 
         # get ID of object
         id = int(identities[i]) if identities is not None else 0
-        print("2line:{}".format(twoline_queue))
-        print("speedline:{}".format(speed_line_queue))
+        # print("2line:{}".format(twoline_queue))
+        # print("speedline:{}".format(speed_line_queue))
         # create new buffer for new object
         if id not in data_deque:  
             data_deque[id] = deque(maxlen= 64)
             speed_line_queue[id] = []
 
+        # if using twoline function
         if id in twoline_queue: 
             twoline_queue[id]+=1
 
-        # if intersect(data_deque[id][0], data_deque[id][1], line[0], line[1]) or intersect(data_deque[id][0], data_deque[id][1], line_v2[0], line_v2[1]):
-        #     if id not in twoline_queue:
-        #         twoline_queue[id]=0
-        #     else: 
-        #         twoline_queue[id]+=1
-        #         twoline_speed_queue[id] = twoline_speed(len(twoline_queue))
-        # # if intersect(data_deque[id][0], data_deque[id][1], line_v2[0], line_v2[1]):
-        # #     twoline_queue[id]+=1
-        # #     twoline_speed_queue[id] = twoline_speed(len(twoline_queue))
 
         color = compute_color_for_labels(object_id[i])
         obj_name = names[object_id[i]]
@@ -180,7 +172,8 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
         data_deque[id].appendleft(center)
         # print("data_deque:{}".format(len(data_deque)))
         if len(data_deque[id]) >= 2:
-            
+
+            # if using twoline function
             if intersect(data_deque[id][0], data_deque[id][1], line1[0], line1[1]) or intersect(data_deque[id][0], data_deque[id][1], line2[0], line2[1]):
                 if id not in twoline_queue:
                     twoline_queue[id]=0
@@ -190,14 +183,12 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
 
 
             direction = get_direction(data_deque[id][0], data_deque[id][1])
-            # print(direction)
-            # print(data_deque[id])
-            object_speed = twopoint_speed(data_deque[id][1], data_deque[id][0])
-            speed_line_queue[id].append(object_speed)
+
+
+            # if using twopoint function
+            # object_speed = twopoint_speed(data_deque[id][1], data_deque[id][0])
+            # speed_line_queue[id].append(object_speed)
             if intersect(data_deque[id][0], data_deque[id][1], line1[0], line1[1]):
-                # if id not in twoline_queue:
-                #     twoline_queue[id]=0
-                # print("intered")
                 cv2.line(img, line1[0], line1[1], (255, 255, 255), 3)
                 if "South" in direction:
                     if obj_name not in object_counter:
@@ -212,6 +203,7 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
 
 
         try:
+            # if using twopoints function
             # label = label + " " + str(sum(speed_line_queue[id])//len(speed_line_queue[id])) + "km/h"
             label = label + " " + str(twoline_speed_queue[id]) + "km/h"
         except:

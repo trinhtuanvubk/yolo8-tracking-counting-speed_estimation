@@ -2,20 +2,30 @@ from collections import deque
 import numpy as np
 import math
 import cv2
-from utils.speed_estimator import twoline_speed, twopoint_speed
+from .speed_estimator import twoline_speed, twopoint_speed, birdeyes_speed
 
 
 palette = (2 ** 11 - 1, 2 ** 15 - 1, 2 ** 20 - 1)
 data_deque = {}
 object_counter = {}
 object_counter1 = {}
+
+
+
 line1 = [(50, 500), (1200, 500)]
+
 line2 = [(50, 400), (1200, 400)]
-# line_speed_start = [(50, 500), (1100, 500)]
-# line_speed_end = [(50, 800), (1100, 800)]
+
 speed_line_queue = {}
 twoline_queue = {}
 twoline_speed_queue = {}
+
+speed_birdeye_queue = {}
+
+transform_matrix_path = "./predictor/birdview/transform_matrix.npy"
+M = np.load(transform_matrix_path)
+M = np.array(M, np.float32)
+transform_data_deque = {}
 
 def xyxy_to_xywh(*xyxy):
     """" Calculates the relative bounding box from absolute pixel values. """
@@ -141,6 +151,7 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
         data_deque.pop(key)
 
     for i, box in enumerate(bbox):
+        print(box)
         x1, y1, x2, y2 = [int(i) for i in box]
         x1 += offset[0]
         x2 += offset[0]
@@ -149,15 +160,20 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
 
         # code to find center of bottom edge
         center = (int((x2+x1)/ 2), int((y2+y2)/2))
-
+        np_center = np.array(center, dtype=np.float32).reshape(1, -1, 2)
+        print(np_center)
+        transformed_center = cv2.perspectiveTransform(np_center, M)
+        print(transformed_center)
         # get ID of object
         id = int(identities[i]) if identities is not None else 0
         # print("2line:{}".format(twoline_queue))
         # print("speedline:{}".format(speed_line_queue))
         # create new buffer for new object
         if id not in data_deque:  
-            data_deque[id] = deque(maxlen= 64)
+            data_deque[id] = deque(maxlen=64)
+            transform_data_deque[id] = deque(maxlen=64)
             speed_line_queue[id] = []
+            speed_birdeye_queue[id] = []
 
         # if using twoline function
         if id in twoline_queue: 
@@ -170,6 +186,9 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
 
         # add center to buffer
         data_deque[id].appendleft(center)
+        transform_data_deque[id].appendleft(transformed_center[0][0])
+        print("transform{}".format(transform_data_deque))
+
         # print("data_deque:{}".format(len(data_deque)))
         if len(data_deque[id]) >= 2:
 
@@ -181,13 +200,17 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
                     twoline_queue[id]+=1
                     twoline_speed_queue[id] = twoline_speed(len(twoline_queue), line1=line1, line2=line2)
 
+            # if using twopoint function
+            object_speed = twopoint_speed(data_deque[id][1], data_deque[id][0])
+            speed_line_queue[id].append(object_speed)
+
+            # if using birdeyes function 
+            object_speed = birdeyes_speed(transform_data_deque[id][1], transform_data_deque[id][0])
+            speed_birdeye_queue[id].append(object_speed)
 
             direction = get_direction(data_deque[id][0], data_deque[id][1])
 
 
-            # if using twopoint function
-            # object_speed = twopoint_speed(data_deque[id][1], data_deque[id][0])
-            # speed_line_queue[id].append(object_speed)
             if intersect(data_deque[id][0], data_deque[id][1], line1[0], line1[1]):
                 cv2.line(img, line1[0], line1[1], (255, 255, 255), 3)
                 if "South" in direction:
@@ -205,7 +228,13 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
         try:
             # if using twopoints function
             # label = label + " " + str(sum(speed_line_queue[id])//len(speed_line_queue[id])) + "km/h"
-            label = label + " " + str(twoline_speed_queue[id]) + "km/h"
+
+            # if using twoline function 
+            # label = label + " " + str(twoline_speed_queue[id]) + "km/h"
+
+            # if using birdeyes function
+            # label = label + " " + str(object_speed) + "km/h"
+            label = label + " " + str(sum(speed_birdeye_queue[id])//len(speed_line_queue[id])) + "km/h"
         except:
             pass
         UI_box(box, img, label=label, color=color, line_thickness=2)

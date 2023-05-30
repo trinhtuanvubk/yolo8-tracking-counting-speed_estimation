@@ -8,8 +8,8 @@ from ultralytics.yolo.utils import DEFAULT_CFG, ROOT, ops
 from ultralytics.yolo.utils.checks import check_imgsz
 from ultralytics.yolo.utils.plotting import Annotator, colors, save_one_box
 
-from utils.speed_estimator import twoline_speed, twopoint_speed
-from utils.draw_boxes import *
+from .speed_estimator import twoline_speed, twopoint_speed
+from .draw_boxes import *
 
 
 
@@ -39,7 +39,7 @@ class DetectionPredictor_V2(BasePredictor):
             results.append(Results(orig_img=orig_img, path=img_path, names=self.model.names, boxes=pred))
         return results
 
-    def write_results_v2(self, idx, tracker_outputs, results, batch):
+    def write_results_v2(self, idx, tracker_outputs, results, batch, speed_method):
       
         p, im, im0 = batch
         # all_outputs = []

@@ -1,0 +1,45 @@
+Repo: 
+    https://github.com/duongttr/vehicles-counting-yolov4-deepsort
+    (duongdayne1909@gmail.com)
+
+    https://github.com/mikel-brostrom/yolov8_tracking
+
+    https://github.com/acikmese/MOT_Yolov5_DeepSort
+
+
+
+
+
+Dataset: 
+    MOT challenge: https://motchallenge.net/news.php
+        
+    vehical dataset: https://github.com/shijieS/OmniMOTDataset
+
+    https://www.twine.net/blog/vehicle-detection-datasets/
+
+    https://universe.roboflow.com/7-class/11-11-2021-09.41/dataset/6
+    https://universe.roboflow.com/roboflow-100/vehicles-q0x2v
+
+
+    https://github.com/hunjung-lim/awesome-vehicle-datasets/tree/master/vehicle
+
+    MotChallenge2DBox
+
+    https://github.com/PKU-IMRE/VERI-Wild
+
+Others: 
+    https://universe.roboflow.com/browse/transportation/cars
+
+    https://github.com/hunjung-lim/awesome-vehicle-datasets
+
+    http://yacvid.hayko.at/
+
+
+Downloaded: 
+    https://universe.roboflow.com/roboflow-100/vehicles-q0x2v/dataset/2
+    https://github.com/fubel/synthehicle/wiki/Download#tracking-data
+    https://public.roboflow.com/object-detection/vehicles-openimages
+    https://motchallenge.net/data/MOT15/
+    https://gram.web.uah.es/data/datasets/trancos/index.html
+    https://github.com/shijieS/OmniMOTDataset/blob/master/README.md 
+    https://universe.roboflow.com/cs474-ug2-vehicle-detection/ua-detrac-rvwkg

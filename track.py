@@ -7,7 +7,7 @@ import numpy as np
 import cv2
 
 from trackers.multi_tracker_zoo import create_tracker
-from utils.detection_predictor import DetectionPredictor_V2
+from predictor.detection_predictor import DetectionPredictor_V2
 
 
 from ultralytics.yolo.engine.model import YOLO, TASK_MAP

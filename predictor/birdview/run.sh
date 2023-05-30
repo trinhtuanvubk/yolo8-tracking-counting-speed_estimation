@@ -1,0 +1,1 @@
+python3 calliberate.py --image birdview_test.png

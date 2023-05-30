@@ -101,16 +101,18 @@ if __name__ == '__main__':
 
     """ đoạn code sau tạo 1 lưới các điểm trên mặt đường (y=0),
     ánh xạ nó lên vị trí pixel tương ứng và hiển thị"""
-    for x in range(-16, 16):
-        for z in range(1, 500):
+    for x in range(-20, 20):
+        for z in range(1, 200):
             y = 0
             # Tọa độ điểm 3D trong thực tế sang tọa độ pixel
             point_in_real_world = np.array([x, y, z, 1])
             point_in_pixel = convert(point_in_real_world)
+            print(point_in_pixel)
             cv2.circle(img, point_in_pixel, 2, (255, 0, 0), 2)
 
             # chuyển đổi từ tọa độ pixel sang tọa độ thế giới thực
             p_inverted = invert(point_in_pixel)
+            print(p_inverted)
 
     # cv2.imshow('test', img)
     cv2.imwrite("test.jpg", img)

@@ -89,8 +89,9 @@ def transform_3d_speed(location1, location2):
                   [0, 0, 1]])
 
     _location1 = invert(location1)
-    inverted_location1 = np.array([])
+    inverted_location1 = np.array([_location1[0], _location1[2]])
     _location2 = invert(location2)
+    inverted_location2 = np.array([_location2[0], _location2[2]])
 
 
 

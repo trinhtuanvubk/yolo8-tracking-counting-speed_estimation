@@ -4,7 +4,7 @@ python track.py --yolo-model weights/yolov8n.pt \
 --source test_data/test1.mp4 \
 --classes 0 1 2 3 5 6 7 \
 --save \
-
+--speed-method transform_3d
 
 # python3 track.py --yolo-model weights/yolov8n.pt \
 # --reid-model weights/osnet_x0_25_msmt17.pt \

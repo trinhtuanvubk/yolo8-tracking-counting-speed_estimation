@@ -2,6 +2,54 @@ import numpy as np
 import cv2
 from math import cos, sin
 
+height, width = 740, 1280
+
+# Khởi tạo các tham số
+pi = 3.14
+# Góc quay camera
+p = [-pi / 7.4, 0.11, 0.0]  # [góc quay theo trục X, quay theo trục Y, quay theo trục Z]
+
+H = 5.0  # Chiều cao của camera so với mặt đất
+f = 0.010  # focal_length của camera
+# Độ rộng 1 pixel
+pu = 0.000025
+
+# Ma trận hướng của camera, Rx tương ứng là ma trận xoay theo trục X
+Rx = np.array([[1, 0, 0, 0],
+                [0, cos(-p[0]), sin(-p[0]), 0],
+                [0, -sin(-p[0]), cos(-p[0]), 0],
+                [0, 0, 0, 1]])
+
+Ry = np.array([[cos(-p[1]), 0, -sin(-p[1]), 0],
+                [0, 1, 0, 0],
+                [sin(-p[1]), 0, cos(-p[1]), 0],
+                [0, 0, 0, 1]])
+
+Rz = np.array([[cos(-p[2]), sin(-p[2]), 0, 0],
+                [-sin(-p[2]), cos(-p[2]), 0, 0],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1]])
+
+# Ma trận vị trí của camera
+T = np.array([[1, 0, 0, 0],
+                [0, 1, 0, -H],
+                [0, 0, 1, 0],
+                [0, 0, 0, 1]])
+R = Rx @ Ry @ Rz
+
+# Ma trận chiếu
+K = np.array([[-f, 0, 0],
+                [0, -f, 0],
+                [0, 0, 1]])
+
+cx = width / 2.0
+cy = height / 2.0
+pv = pu / width * height
+
+# Ma trận pixel
+P = np.array([[1 / pu, 0, cx],
+                [0, 1 / pv, cy],
+                [0, 0, 1]])
 
 def convert(X):
     """Chuyển đổi từ tọa độ điểm trong thế giới thực sang tọa độ pixel"""
@@ -45,7 +93,7 @@ def plane_equation(x, v):
     d = -(a * x[0] + b * x[1] + c * x[2])
     return np.array([a, b, c, d])
 
-
+'''
 if __name__ == '__main__':
     img_path = './img_test.png'
     img = cv2.imread(img_path)
@@ -115,3 +163,4 @@ if __name__ == '__main__':
     # cv2.imshow('test', img)
     cv2.imwrite("test.jpg", img)
     # key = cv2.waitKey(0)
+'''

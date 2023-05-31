@@ -1,7 +1,8 @@
 import math
 from .transform_3d import * 
 
-def twopoint_speed(Location1, Location2):
+
+def twopoints_speed(Location1, Location2):
     #Euclidean Distance Formula
     d_pixel = math.sqrt(math.pow(Location2[0] - Location1[0], 2) + math.pow(Location2[1] - Location1[1], 2))
     # defining thr pixels per meter
@@ -13,7 +14,7 @@ def twopoint_speed(Location1, Location2):
     speed = d_meters * time_constant
     return int(speed)
 
-def twoline_speed(num_frames, line1, line2):
+def twolines_speed(num_frames, line1, line2):
 
     ppm = 8 
     d_pixel = line1[0][1] - line2[0][1]
@@ -88,10 +89,18 @@ def transform_3d_speed(location1, location2):
                   [0, 1 / pv, cy],
                   [0, 0, 1]])
 
+    fps = 30
     _location1 = invert(location1)
     inverted_location1 = np.array([_location1[0], _location1[2]])
     _location2 = invert(location2)
     inverted_location2 = np.array([_location2[0], _location2[2]])
+
+    d_pixel = math.sqrt(math.pow(inverted_location2[0] - inverted_location1[0], 2) + math.pow(inverted_location2[1] - inverted_location1[1], 2))
+
+    speed = d_pixel * 30 * 3.6
+
+    return speed
+
 
 
 

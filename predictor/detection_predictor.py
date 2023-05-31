@@ -8,8 +8,9 @@ from ultralytics.yolo.utils import DEFAULT_CFG, ROOT, ops
 from ultralytics.yolo.utils.checks import check_imgsz
 from ultralytics.yolo.utils.plotting import Annotator, colors, save_one_box
 
-from .speed_estimator import twoline_speed, twopoint_speed
+# from .speed_estimator import twoline_speed, twopoint_speed
 from .draw_boxes import *
+# from .trash_draw_boxes_backup3 import *
 
 
 
@@ -39,7 +40,7 @@ class DetectionPredictor_V2(BasePredictor):
             results.append(Results(orig_img=orig_img, path=img_path, names=self.model.names, boxes=pred))
         return results
 
-    def write_results_v2(self, idx, tracker_outputs, results, batch, speed_method):
+    def write_results_v2(self, idx, tracker_outputs, results, batch):
       
         p, im, im0 = batch
         # all_outputs = []
@@ -71,7 +72,7 @@ class DetectionPredictor_V2(BasePredictor):
             identities = outputs[:, -3]
             object_id = outputs[:, -1]
             
-            img = draw_boxes(im0, bbox_xyxy, self.model.names, object_id,identities)
+            img = draw_boxes(im0, bbox_xyxy, self.model.names, self.args.speed_method, object_id,identities)
 
         if self.args.save or self.args.show:  # Add bbox to image
             self.plotted_img = img

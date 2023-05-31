@@ -2,30 +2,34 @@ from collections import deque
 import numpy as np
 import math
 import cv2
-from .speed_estimator import twoline_speed, twopoint_speed, birdeyes_speed
+from .speed_estimator import twolines_speed, twopoints_speed, birdeyes_speed, transform_3d_speed
 
 
 palette = (2 ** 11 - 1, 2 ** 15 - 1, 2 ** 20 - 1)
 data_deque = {}
+speed_queue = {} 
+
+# for twolines method
+twolines_queue = {}
+
+# for birdeyes method
+transformed_center_deque = {}
+
 object_counter = {}
 object_counter1 = {}
 
 
-
+# line1 for counting
 line1 = [(50, 500), (1200, 500)]
-
+# line2 and line1 for twoline speed
 line2 = [(50, 400), (1200, 400)]
 
-speed_line_queue = {}
-twoline_queue = {}
-twoline_speed_queue = {}
 
-speed_birdeye_queue = {}
-
-transform_matrix_path = "./predictor/birdview/transform_matrix.npy"
+# for birdeyes method
+transform_matrix_path = "./predictor/birdeyes/transform_matrix.npy"
 M = np.load(transform_matrix_path)
 M = np.array(M, np.float32)
-transform_data_deque = {}
+
 
 def xyxy_to_xywh(*xyxy):
     """" Calculates the relative bounding box from absolute pixel values. """
@@ -140,18 +144,19 @@ def get_direction(point1, point2):
         direction_str += ""
 
     return direction_str
-def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
+def draw_boxes(img, bbox, names, speed_method, object_id, identities=None, offset=(0, 0)):
     cv2.line(img, line1[0], line1[1], (46,162,112), 3)
-    cv2.line(img, line2[0], line2[1], (46,162,112), 3)
+    if speed_method=='twolines':
+        cv2.line(img, line2[0], line2[1], (46,162,112), 3)
 
     height, width, _ = img.shape
     # remove tracked point from buffer if object is lost
     for key in list(data_deque):
-      if key not in identities:
-        data_deque.pop(key)
+        if key not in identities:
+            data_deque.pop(key)
 
     for i, box in enumerate(bbox):
-        print(box)
+        # print(box)
         x1, y1, x2, y2 = [int(i) for i in box]
         x1 += offset[0]
         x2 += offset[0]
@@ -160,24 +165,20 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
 
         # code to find center of bottom edge
         center = (int((x2+x1)/ 2), int((y2+y2)/2))
-        np_center = np.array(center, dtype=np.float32).reshape(1, -1, 2)
-        print(np_center)
-        transformed_center = cv2.perspectiveTransform(np_center, M)
-        print(transformed_center)
+
+        # if using 4points transform
+        if speed_method=='birdeyes':
+            np_center = np.array(center, dtype=np.float32).reshape(1, -1, 2)
+            transformed_center = cv2.perspectiveTransform(np_center, M)
+    
+
         # get ID of object
         id = int(identities[i]) if identities is not None else 0
-        # print("2line:{}".format(twoline_queue))
-        # print("speedline:{}".format(speed_line_queue))
-        # create new buffer for new object
+ 
         if id not in data_deque:  
             data_deque[id] = deque(maxlen=64)
-            transform_data_deque[id] = deque(maxlen=64)
-            speed_line_queue[id] = []
-            speed_birdeye_queue[id] = []
-
-        # if using twoline function
-        if id in twoline_queue: 
-            twoline_queue[id]+=1
+            transformed_center_deque[id] = deque(maxlen=64)
+            speed_queue[id] = []
 
 
         color = compute_color_for_labels(object_id[i])
@@ -186,28 +187,39 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
 
         # add center to buffer
         data_deque[id].appendleft(center)
-        transform_data_deque[id].appendleft(transformed_center[0][0])
-        print("transform{}".format(transform_data_deque))
 
-        # print("data_deque:{}".format(len(data_deque)))
+        if speed_method=="twolines" and id in twolines_queue:
+            twolines_queue[id] += 1
+
+        # if using 4point transform
+        if speed_method=="birdeyes":
+            transformed_center_deque[id].appendleft(transformed_center[0][0])
+   
         if len(data_deque[id]) >= 2:
-
             # if using twoline function
-            if intersect(data_deque[id][0], data_deque[id][1], line1[0], line1[1]) or intersect(data_deque[id][0], data_deque[id][1], line2[0], line2[1]):
-                if id not in twoline_queue:
-                    twoline_queue[id]=0
+            if speed_method=='twolines' and intersect(data_deque[id][0], data_deque[id][1], line1[0], line1[1]) or intersect(data_deque[id][0], data_deque[id][1], line2[0], line2[1]):
+                if id not in twolines_queue:
+                    twolines_queue[id]=0
                 else: 
-                    twoline_queue[id]+=1
-                    twoline_speed_queue[id] = twoline_speed(len(twoline_queue), line1=line1, line2=line2)
-
+                    twolines_queue[id]+=1
+                    object_speed = twolines_speed(len(twolines_queue), line1=line1, line2=line2)
+                    speed_queue[id].append(object_speed)
             # if using twopoint function
-            object_speed = twopoint_speed(data_deque[id][1], data_deque[id][0])
-            speed_line_queue[id].append(object_speed)
+            if speed_method=='twopoints':
+                object_speed = twopoints_speed(data_deque[id][1], data_deque[id][0])
+                speed_queue[id].append(object_speed)
 
             # if using birdeyes function 
-            object_speed = birdeyes_speed(transform_data_deque[id][1], transform_data_deque[id][0])
-            speed_birdeye_queue[id].append(object_speed)
+            elif speed_method=='birdeyes':
+                object_speed = birdeyes_speed(transformed_center_deque[id][1], transformed_center_deque[id][0])
+                speed_queue[id].append(object_speed)
 
+            # if using 3d transform function 
+            elif speed_method=='transform_3d':
+                object_speed = transform_3d_speed(data_deque[id][1], data_deque[id][0])
+                speed_queue[id].append(object_speed)
+
+            # get direction
             direction = get_direction(data_deque[id][0], data_deque[id][1])
 
 
@@ -226,15 +238,7 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
 
 
         try:
-            # if using twopoints function
-            # label = label + " " + str(sum(speed_line_queue[id])//len(speed_line_queue[id])) + "km/h"
-
-            # if using twoline function 
-            # label = label + " " + str(twoline_speed_queue[id]) + "km/h"
-
-            # if using birdeyes function
-            # label = label + " " + str(object_speed) + "km/h"
-            label = label + " " + str(sum(speed_birdeye_queue[id])//len(speed_line_queue[id])) + "km/h"
+            label = label + " " + str(sum(speed_queue[id])//len(speed_queue[id])) + "km/h"
         except:
             pass
         UI_box(box, img, label=label, color=color, line_thickness=2)
@@ -251,15 +255,15 @@ def draw_boxes(img, bbox, names,object_id, identities=None, offset=(0, 0)):
     #4. Display Count in top right corner
         for idx, (key, value) in enumerate(object_counter1.items()):
             cnt_str = str(key) + ":" +str(value)
-            cv2.line(img, (width - 500,25), (width,25), [85,45,255], 40)
-            cv2.putText(img, f'Number of Vehicles Entering', (width - 500, 35), 0, 1, [225, 255, 255], thickness=2, lineType=cv2.LINE_AA)
-            cv2.line(img, (width - 150, 65 + (idx*40)), (width, 65 + (idx*40)), [85, 45, 255], 30)
+            cv2.line(img, (width - 320,25), (width-20,25), [85,45,255], 40)
+            cv2.putText(img, f'Vehicles Entering', (width-20 - 300, 35), 0, 1, [225, 255, 255], thickness=2, lineType=cv2.LINE_AA)
+            cv2.line(img, (width - 150, 65 + (idx*40)), (width-20, 65 + (idx*40)), [85, 45, 255], 30)
             cv2.putText(img, cnt_str, (width - 150, 75 + (idx*40)), 0, 1, [255, 255, 255], thickness = 2, lineType = cv2.LINE_AA)
 
         for idx, (key, value) in enumerate(object_counter.items()):
             cnt_str1 = str(key) + ":" +str(value)
-            cv2.line(img, (20,25), (500,25), [85,45,255], 40)
-            cv2.putText(img, f'Numbers of Vehicles Leaving', (11, 35), 0, 1, [225, 255, 255], thickness=2, lineType=cv2.LINE_AA)    
+            cv2.line(img, (20,25), (300,25), [85,45,255], 40)
+            cv2.putText(img, f'Vehicles Leaving', (11, 35), 0, 1, [225, 255, 255], thickness=2, lineType=cv2.LINE_AA)    
             cv2.line(img, (20,65+ (idx*40)), (127,65+ (idx*40)), [85,45,255], 30)
             cv2.putText(img, cnt_str1, (11, 75+ (idx*40)), 0, 1, [225, 255, 255], thickness=2, lineType=cv2.LINE_AA)
     

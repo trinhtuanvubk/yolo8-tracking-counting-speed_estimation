@@ -69,6 +69,7 @@ def run(
     yolo_model=WEIGHTS / 'yolov8n.pt',  # model.pt path(s),
     reid_model=WEIGHTS / 'osnet_x0_25_msmt17.pt',  # model.pt path,
     tracking_method='strongsort',
+    speed_method='3dtransform' ,
     source = '0',
     imgsz = [640, 640],
     save_dir=False,
@@ -106,6 +107,7 @@ def run(
     
     predictor.args.reid_model = reid_model
     predictor.args.tracking_method = tracking_method
+    predictor.args.speed_method = speed_method
     predictor.args.conf = 0.5
     predictor.args.project = project
     predictor.args.name = name
@@ -268,6 +270,7 @@ def parse_opt():
     parser.add_argument('--exists-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--half', action='store_true', help='use FP16 half-precision inference')
     parser.add_argument('--vid-stride', type=int, default=1, help='video frame-rate stride')
+    parser.add_argument('--speed-method', type=str, default='3dtransform', help='speed estimation method')
     opt = parser.parse_args()
     print_args(vars(opt))
     return opt

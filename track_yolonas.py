@@ -17,6 +17,11 @@ from ultralytics.yolo.utils.files import increment_path
 from ultralytics.yolo.engine.results import Boxes
 from ultralytics.yolo.data.utils import VID_FORMATS
 
+from super_gradients.training import models
+from super_gradients.common.object_names import Models
+from super_gradients.training.utils.checkpoint_utils import load_checkpoint_to_model
+
+
 WEIGHTS = Path(SETTINGS['weights_dir'])
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # root dir
@@ -93,14 +98,29 @@ def run(
         source = ROOT / 'assets' if is_git_dir() else 'https://ultralytics.com/images/bus.jpg'
         LOGGER.warning(f"WARNING ⚠️ 'source' is missing. Using 'source={source}'.")
     
-    print(yolo_model)
-    print("-------------")
+    # print(yolo_model)
     model = YOLO(yolo_model)
-    print(model.task)
-    print("-------------")
+    # print(model.model.stride)
+    # print(model.model)
     overrides = model.overrides.copy()
-    model.predictor = TASK_MAP[model.task][3](overrides=overrides, _callbacks=model.callbacks)
+    # model.predictor = TASK_MAP[model.task][3](overrides=overrides, _callbacks=model.callbacks)
     
+    yolonas = models.get("yolo_nas_s", checkpoint_path="./weights/yolo_nas_s_coco.pth", pretrained_weights="coco")
+    class_names = [
+    "person",
+    "bicycle",
+    "car",
+    "truck",
+    "motorcycle",
+    "airplane",
+    "bus",
+    ]
+    yolonas.set_dataset_processing_params(
+        class_names=class_names,
+        # image_processor=image_processor,
+        iou=0.35, conf=0.25,
+    )
+
     # predictor = model.predictor
     predictor = DetectionPredictor_V2()
 
@@ -132,6 +152,7 @@ def run(
     source_type = dataset.source_type
     preprocess = predictor.preprocess
     postprocess = predictor.postprocess
+    postprocess_v2 = predictor.postprocess_v2
     run_callbacks = predictor.run_callbacks
     save_preds = predictor.save_preds
     predictor.save_dir = increment_path(Path(predictor.args.project) / name, exist_ok=exists_ok)
@@ -151,7 +172,6 @@ def run(
         run_callbacks('on_predict_batch_start')
         predictor.batch = batch
         path, im0s, vid_cap, s = batch
-        print(batch)
         visualize = increment_path(save_dir / Path(path[0]).stem, exist_ok=True, mkdir=True) if visualize and (not source_type.tensor) else False
 
         # Preprocess
@@ -159,28 +179,31 @@ def run(
             im = preprocess(im0s)
             print("im ori shape:{}".format(im0s[0].shape))
             print("im shape: {}".format(im.shape))
-            # im ori shape:(720, 1280, 3)
-            # im shape: torch.Size([1, 3, 384, 640])
 
         # Inference
         with predictor.profilers[1]:
-            preds = model(im, augment=augment, visualize=visualize)
+            output = list(yolonas.predict(im0s))[0]
+            print("output:{}".format(output))
+            labels = output.prediction.labels
+            labels = np.array(labels).reshape((-1,1))
+            print(labels.shape)
+            confidence = output.prediction.confidence
+            confidence = np.array(confidence).reshape((-1,1))
+            bboxes = np.array(output.prediction.bboxes_xyxy)
+            print(bboxes.shape)
+            preds = torch.from_numpy(np.concatenate((bboxes, confidence, labels), axis=-1))
             print("pred:{}".format(preds))
-            print("-------------")
             # print(len(preds[0][0]))
         # Postprocess
         with predictor.profilers[2]:
-            # print("before:{}".format(predictor.results))
-            predictor.results = postprocess(preds, im, im0s)
+            predictor.results = postprocess_v2([preds], im, im0s, preds_as_bboxes=True)
             # print("resultttttttttttttttttttttttt")
-            print("result:{}".format(predictor.results))
-            print("-------------")
+            # print(len(predictor.results[0]))
         run_callbacks('on_predict_postprocess_end')
         
         # Visualize, save, write results
         n = len(im0s)
         for i in range(n):
-            
             if source_type.tensor:  # skip write, show and plot operations if input is raw tensor
                 continue
             p, im0 = path[i], im0s[i].copy()
@@ -200,7 +223,7 @@ def run(
                 'tracking': predictor.profilers[3].dt * 1E3 / n
             
             }
-# 
+
             # overwrite bbox results with tracker predictions
             if predictor.tracker_outputs[i].size != 0:
                 predictor.results[i].boxes = Boxes(
@@ -225,7 +248,6 @@ def run(
                     
                 if predictor.tracker_outputs[i].size != 0:
                     print(predictor.tracker_outputs[i])
-                    print("-------------")
                     write_MOT_results(
                         predictor.MOT_txt_path,
                         predictor.results[i],

@@ -3,7 +3,7 @@
 
 <div align="center">
   <p>
-  <img src="./figure/demo_speed_short.gif" width="700"/>
+  <img src="./figure/test1_yolov8n_transform3d_fix.gif" width="700"/>
   </p>
   <br>
 </div>

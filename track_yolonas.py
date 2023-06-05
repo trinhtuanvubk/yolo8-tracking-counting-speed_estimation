@@ -6,20 +6,22 @@ import argparse
 import numpy as np
 import cv2
 
-from trackers.multi_tracker_zoo import create_tracker
+from trackers import create_tracker
+# import trackers
 from predictor.detection_predictor import DetectionPredictor_V2
 
 
 from ultralytics.yolo.engine.model import YOLO, TASK_MAP
-from ultralytics.yolo.utils import LOGGER, SETTINGS, colorstr, ops, is_git_dir
+from ultralytics.yolo.utils import LOGGER, SETTINGS, colorstr, ops, is_git_dir, IterableSimpleNamespace
 from ultralytics.yolo.utils.checks import check_imgsz, print_args
 from ultralytics.yolo.utils.files import increment_path
 from ultralytics.yolo.engine.results import Boxes
 from ultralytics.yolo.data.utils import VID_FORMATS
 
-from super_gradients.training import models
-from super_gradients.common.object_names import Models
-from super_gradients.training.utils.checkpoint_utils import load_checkpoint_to_model
+from multi_yolo_backend import MultiYolo
+# from super_gradients.training import models
+# from super_gradients.common.object_names import Models
+# from super_gradients.training.utils.checkpoint_utils import load_checkpoint_to_model
 
 
 WEIGHTS = Path(SETTINGS['weights_dir'])
@@ -70,92 +72,34 @@ def write_MOT_results(txt_path, results, frame_idx, i):
 
 
 @torch.no_grad()
-def run(
-    yolo_model=WEIGHTS / 'yolov8n.pt',  # model.pt path(s),
-    reid_model=WEIGHTS / 'osnet_x0_25_msmt17.pt',  # model.pt path,
-    tracking_method='strongsort',
-    speed_method='3dtransform' ,
-    source = '0',
-    imgsz = [640, 640],
-    save_dir=False,
-    vid_stride = 1,
-    verbose = True,
-    project = None,
-    exists_ok = False,
-    name = None,
-    save = True,
-    save_txt = True,
-    visualize=False,
-    plotted_img = True,
-    augment = False,
-    conf = 0.5,
-    device = '',
-    show = False,
-    half = True,
-    classes = None
-):
-    if source is None:
-        source = ROOT / 'assets' if is_git_dir() else 'https://ultralytics.com/images/bus.jpg'
-        LOGGER.warning(f"WARNING ⚠️ 'source' is missing. Using 'source={source}'.")
-    
-    # print(yolo_model)
-    model = YOLO(yolo_model)
-    # print(model.model.stride)
-    # print(model.model)
-    overrides = model.overrides.copy()
-    # model.predictor = TASK_MAP[model.task][3](overrides=overrides, _callbacks=model.callbacks)
-    
-    yolonas = models.get("yolo_nas_s", checkpoint_path="./weights/yolo_nas_s_coco.pth", pretrained_weights="coco")
-    class_names = [
-    "person",
-    "bicycle",
-    "car",
-    "truck",
-    "motorcycle",
-    "airplane",
-    "bus",
-    ]
-    yolonas.set_dataset_processing_params(
-        class_names=class_names,
-        # image_processor=image_processor,
-        iou=0.35, conf=0.25,
-    )
+def run(args):
 
-    # predictor = model.predictor
+
+    model = YOLO(args['yolo_model'] if 'v8' in str(args['yolo_model']) else 'yolov8n')
+    print(model)
+    # print(model.predictor.model)
+    # model = YOLO(args["yolo_model"])
+    overrides = model.overrides.copy()
+    model.predictor = TASK_MAP[model.task][3](overrides=overrides, _callbacks=model.callbacks)
+
+    print(model.predictor.model)
     predictor = DetectionPredictor_V2()
 
-    # https://github.com/ultralytics/ultralytics/blob/main/ultralytics/yolo/engine/model.py
-    #model.predictor.setup_model(model=model.model, verbose=False)
     
-    predictor.args.reid_model = reid_model
-    predictor.args.tracking_method = tracking_method
-    predictor.args.speed_method = speed_method
-    predictor.args.conf = 0.5
-    predictor.args.project = project
-    predictor.args.name = name
-    predictor.args.conf = conf
-    predictor.args.half = half
-    predictor.args.classes = classes
-    predictor.args.imgsz = imgsz
-    predictor.args.vid_stride = vid_stride
-    predictor.args.save_txt = True
-    predictor.args.save = True
+    # combine default predictor args with custom, preferring custom
+    combined_args = {**predictor.args.__dict__, **args}
+    # overwrite default args
+    predictor.args = IterableSimpleNamespace(**combined_args)
+
     predictor.write_MOT_results = write_MOT_results
+
     if not predictor.model:
         predictor.setup_model(model=model.model, verbose=False)
+    predictor.setup_source(predictor.args.source)
     
-    predictor.setup_source(source if source is not None else predictor.args.source)
     
-    dataset = predictor.dataset
-    model = predictor.model
-    imgsz = check_imgsz(imgsz, stride=model.model.stride, min_dim=2)  # check image size
-    source_type = dataset.source_type
-    preprocess = predictor.preprocess
-    postprocess = predictor.postprocess
-    postprocess_v2 = predictor.postprocess_v2
-    run_callbacks = predictor.run_callbacks
-    save_preds = predictor.save_preds
-    predictor.save_dir = increment_path(Path(predictor.args.project) / name, exist_ok=exists_ok)
+    predictor.args.imgsz = check_imgsz(predictor.args.imgsz, stride=model.model.stride, min_dim=2)  # check image size
+    predictor.save_dir = increment_path(Path(predictor.args.project) / predictor.args.name, exist_ok=predictor.args.exist_ok)
     
     # Check if save_dir/ label file exists
     if predictor.args.save or predictor.args.save_txt:
@@ -166,45 +110,42 @@ def run(
         predictor.done_warmup = True
     predictor.seen, predictor.windows, predictor.batch, predictor.profilers = 0, [], None, (ops.Profile(), ops.Profile(), ops.Profile(), ops.Profile())
     predictor.add_callback('on_predict_start', on_predict_start)
-    
-    run_callbacks('on_predict_start')
-    for frame_idx, batch in enumerate(dataset):
-        run_callbacks('on_predict_batch_start')
+    predictor.run_callbacks('on_predict_start')
+
+    model = MultiYolo(
+        model=predictor.model if 'v8' in str(args['yolo_model']) else args['yolo_model'],
+        device=predictor.device,
+        args=predictor.args
+    )
+    for frame_idx, batch in enumerate(predictor.dataset):
+        predictor.run_callbacks('on_predict_batch_start')
         predictor.batch = batch
         path, im0s, vid_cap, s = batch
-        visualize = increment_path(save_dir / Path(path[0]).stem, exist_ok=True, mkdir=True) if visualize and (not source_type.tensor) else False
+        visualize = increment_path(save_dir / Path(path[0]).stem, exist_ok=True, mkdir=True) if predictor.args.visualize and (not predictor.dataset.source_type.tensor) else False
+
+        n = len(im0s)
+        predictor.results = [None] * n
 
         # Preprocess
         with predictor.profilers[0]:
-            im = preprocess(im0s)
+            im = predictor.preprocess(im0s)
             print("im ori shape:{}".format(im0s[0].shape))
             print("im shape: {}".format(im.shape))
 
         # Inference
         with predictor.profilers[1]:
-            output = list(yolonas.predict(im0s))[0]
-            print("output:{}".format(output))
-            labels = output.prediction.labels
-            labels = np.array(labels).reshape((-1,1))
-            print(labels.shape)
-            confidence = output.prediction.confidence
-            confidence = np.array(confidence).reshape((-1,1))
-            bboxes = np.array(output.prediction.bboxes_xyxy)
-            print(bboxes.shape)
-            preds = torch.from_numpy(np.concatenate((bboxes, confidence, labels), axis=-1))
-            print("pred:{}".format(preds))
-            # print(len(preds[0][0]))
-        # Postprocess
+            preds = model(im, im0s)
+
+        # Postprocess moved to MultiYolo
         with predictor.profilers[2]:
-            predictor.results = postprocess_v2([preds], im, im0s, preds_as_bboxes=True)
-            # print("resultttttttttttttttttttttttt")
-            # print(len(predictor.results[0]))
-        run_callbacks('on_predict_postprocess_end')
+            predictor.results = model.postprocess(path, preds, im, im0s, predictor)
+        predictor.run_callbacks('on_predict_postprocess_end')
         
         # Visualize, save, write results
         n = len(im0s)
         for i in range(n):
-            if source_type.tensor:  # skip write, show and plot operations if input is raw tensor
+            
+            if predictor.dataset.source_type.tensor:  # skip write, show and plot operations if input is raw tensor
                 continue
             p, im0 = path[i], im0s[i].copy()
             p = Path(p)
@@ -224,23 +165,19 @@ def run(
             
             }
 
+            # filter boxes masks and pose results by tracking results
+            model.filter_results(i, predictor)
             # overwrite bbox results with tracker predictions
-            if predictor.tracker_outputs[i].size != 0:
-                predictor.results[i].boxes = Boxes(
-                    # xyxy, (track_id), conf, cls
-                    boxes=torch.from_numpy(predictor.tracker_outputs[i]).to(dets.device),
-                    orig_shape=im0.shape[:2],  # (height, width)
-                )
-            
+            model.overwrite_results(i, im0.shape[:2], predictor)
             # write inference results to a file or directory   
-            if verbose or save or save_txt or show:
+            if predictor.args.verbose or predictor.args.save or predictor.args.save_txt or predictor.args.show:
                 #vutttttttttttttttttttttttttttt note
                 s += predictor.write_results_v2(i, predictor.tracker_outputs, predictor.results, (p, im, im0))
                 
                 predictor.txt_path = Path(predictor.txt_path)
                 
                 # write MOT specific results
-                if source.endswith(VID_FORMATS):
+                if predictor.args.source.endswith(VID_FORMATS):
                     predictor.MOT_txt_path = predictor.txt_path.parent / p.stem
                 else:
                     # append folder name containing current img
@@ -255,39 +192,38 @@ def run(
                         i,
                     )
             # display an image in a window using OpenCV imshow()
-            if show and plotted_img is not None:
+            if predictor.args.show and predictor.plotted_img is not None:
                 predictor.show(p)
 
             # save video predictions
-            if save and plotted_img is not None:
+            if predictor.args.save and predictor.plotted_img is not None:
                 predictor.save_preds(vid_cap, i, str(predictor.save_dir / p.name))
 
-        run_callbacks('on_predict_batch_end')
-
+        predictor.run_callbacks('on_predict_batch_end')
         # print time (inference-only)
-        if verbose:
-            LOGGER.info(f'{s}{predictor.profilers[1].dt * 1E3:.1f}ms')
+        if predictor.args.verbose:
+            LOGGER.info(f'{s}YOLO {predictor.profilers[1].dt * 1E3:.1f}ms, TRACKING {predictor.profilers[3].dt * 1E3:.1f}ms')
 
     # Release assets
     if isinstance(predictor.vid_writer[-1], cv2.VideoWriter):
         predictor.vid_writer[-1].release()  # release final video writer
 
     # Print results
-    if verbose and predictor.seen:
+    if predictor.args.verbose and predictor.seen:
         t = tuple(x.t / predictor.seen * 1E3 for x in predictor.profilers)  # speeds per image
         LOGGER.info(f'Speed: %.1fms preprocess, %.1fms inference, %.1fms postprocess, %.1fms tracking per image at shape '
-                    f'{(1, 3, *imgsz)}' % t)
-    if save or predictor.args.save_txt or predictor.args.save_crop:
+                    f'{(1, 3, *predictor.args.imgsz)}' % t)
+    if predictor.args.save or predictor.args.save_txt or predictor.args.save_crop:
         nl = len(list(predictor.save_dir.glob('labels/*.txt')))  # number of labels
         s = f"\n{nl} label{'s' * (nl > 1)} saved to {predictor.save_dir / 'labels'}" if predictor.args.save_txt else ''
         LOGGER.info(f"Results saved to {colorstr('bold', predictor.save_dir)}{s}")
 
-    run_callbacks('on_predict_end')
+    predictor.run_callbacks('on_predict_end')
     
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--yolo-model', type=str, default=WEIGHTS / 'yolov8n.pt', help='model.pt path(s)')
+    parser.add_argument('--yolo-model', type=Path, default=WEIGHTS / 'yolov8n.pt', help='model.pt path(s)')
     parser.add_argument('--reid-model', type=Path, default=WEIGHTS / 'mobilenetv2_x1_4_dukemtmcreid.pt')
     parser.add_argument('--tracking-method', type=str, default='deepocsort', help='deepocsort, botsort, strongsort, ocsort, bytetrack')
     parser.add_argument('--source', type=str, default='0', help='file/dir/URL/glob, 0 for webcam')  
@@ -304,15 +240,17 @@ def parse_opt():
     parser.add_argument('--half', action='store_true', help='use FP16 half-precision inference')
     parser.add_argument('--vid-stride', type=int, default=1, help='video frame-rate stride')
     parser.add_argument('--speed-method', type=str, default='3dtransform', help='speed estimation method')
+    parser.add_argument('--save-txt', action='store_true', help='save tracking results in a txt file')
     opt = parser.parse_args()
     print_args(vars(opt))
     return opt
 
 
 def main(opt):
-    run(**vars(opt))
+    run(vars(opt))
 
 
 if __name__ == "__main__":
     opt = parse_opt()
+    print(vars(opt))
     main(opt)

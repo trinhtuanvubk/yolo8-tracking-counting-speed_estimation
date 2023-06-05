@@ -5,14 +5,18 @@ env/
 __pycache__/
 cache
 # experiment results
+trash*.*
 runs/
 videos/
 samples/
 assets/
+notes/
 weights/*.pt
-test_images/
+
+ultralytics/
 *.mp4
 /test_outputs/
+/test_data/
 # evaluation tools folder
 val_utils/
 

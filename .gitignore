@@ -12,10 +12,11 @@ samples/
 assets/
 notes/
 weights/*.pt
-test_images/
+
 ultralytics/
 *.mp4
 /test_outputs/
+/test_data/
 # evaluation tools folder
 val_utils/
 

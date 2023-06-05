@@ -1,7 +1,0 @@
-yolonas:
-Speed: 2.7ms preprocess, 410.5ms inference, 0.1ms postprocess, 7.3ms tracking per image
-
-
-yolo8: 
-Speed: 2.6ms preprocess, 80.2ms inference, 2.2ms postprocess, 3.9ms tracking per image
-

@@ -8,6 +8,9 @@
   <br>
 </div>
 
+## Repository Description
+
+This repository is a derivative of the [mikel-brostrom/yolo_tracking](https://github.com/mikel-brostrom/yolo_tracking/tree/master) by [mikel-brostrom](https://github.com/mikel-brostrom). It builds upon their work and incorporates additional features and modifications specific to this project.
 
 ## Introduction
 

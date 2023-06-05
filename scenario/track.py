@@ -44,7 +44,8 @@ def on_predict_start(predictor):
             predictor.args.tracking_config,
             predictor.args.reid_model,
             predictor.args.device,
-            predictor.args.half
+            predictor.args.half,
+            
         )
         predictor.trackers.append(tracker)
         # if hasattr(predictor.trackers[i], 'model'):

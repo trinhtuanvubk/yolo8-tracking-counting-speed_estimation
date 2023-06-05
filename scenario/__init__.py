@@ -1,1 +1,1 @@
-from .track_yolonas import track
+from .track import track

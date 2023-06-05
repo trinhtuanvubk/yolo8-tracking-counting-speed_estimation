@@ -10,6 +10,7 @@ runs/
 videos/
 samples/
 assets/
+notes/
 weights/*.pt
 test_images/
 ultralytics/

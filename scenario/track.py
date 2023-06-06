@@ -171,7 +171,7 @@ def run(args):
             model.overwrite_results(i, im0.shape[:2], predictor)
             # write inference results to a file or directory   
             if predictor.args.verbose or predictor.args.save or predictor.args.save_txt or predictor.args.show:
-                #vutttttttttttttttttttttttttttt note
+
                 s += predictor.write_results_v2(i, predictor.tracker_outputs, predictor.results, (p, im, im0))
                 
                 predictor.txt_path = Path(predictor.txt_path)

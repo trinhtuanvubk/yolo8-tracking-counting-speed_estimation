@@ -99,8 +99,8 @@ class DetectionPredictor_V2(BasePredictor):
             
             img = draw_boxes(im0, bbox_xyxy, self.model.names, self.args.speed_method, object_id,identities)
 
-        if self.args.save or self.args.show:  # Add bbox to image
-            self.plotted_img = img
+            if self.args.save or self.args.show:  # Add bbox to image
+                self.plotted_img = img
         # Write
         if self.args.save_txt:
             result.save_txt(f'{self.txt_path}.txt', save_conf=self.args.save_conf)

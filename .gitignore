@@ -12,11 +12,12 @@ samples/
 assets/
 notes/
 weights/*.pt
-
+*.sh
 ultralytics/
 *.mp4
 /test_outputs/
 /test_data/
+yolov8n_plate
 # evaluation tools folder
 val_utils/
 

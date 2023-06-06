@@ -76,13 +76,10 @@ def run(args):
 
 
     model = YOLO(args['yolo_model'] if 'v8' in str(args['yolo_model']) else 'yolov8n')
-    print(model)
-    # print(model.predictor.model)
-    # model = YOLO(args["yolo_model"])
+    # print(model)
     overrides = model.overrides.copy()
     model.predictor = TASK_MAP[model.task][3](overrides=overrides, _callbacks=model.callbacks)
 
-    print(model.predictor.model)
     predictor = DetectionPredictor_V2()
 
     
@@ -129,8 +126,8 @@ def run(args):
         # Preprocess
         with predictor.profilers[0]:
             im = predictor.preprocess(im0s)
-            print("im ori shape:{}".format(im0s[0].shape))
-            print("im shape: {}".format(im.shape))
+            # print("im ori shape:{}".format(im0s[0].shape))
+            # print("im shape: {}".format(im.shape))
 
         # Inference
         with predictor.profilers[1]:
@@ -156,7 +153,7 @@ def run(args):
                 print("box:{}".format(dets))
                 # get predictions
                 predictor.tracker_outputs[i] = predictor.trackers[i].update(dets.cpu().detach(), im0)
-                print(predictor.tracker_outputs[i])
+                # print(predictor.tracker_outputs[i])
             predictor.results[i].speed = {
                 'preprocess': predictor.profilers[0].dt * 1E3 / n,
                 'inference': predictor.profilers[1].dt * 1E3 / n,
@@ -171,8 +168,10 @@ def run(args):
             model.overwrite_results(i, im0.shape[:2], predictor)
             # write inference results to a file or directory   
             if predictor.args.verbose or predictor.args.save or predictor.args.save_txt or predictor.args.show:
-
-                s += predictor.write_results_v2(i, predictor.tracker_outputs, predictor.results, (p, im, im0))
+                if predictor.args.only_track:
+                    s+= predictor.write_results(i, predictor.results, (p, im, im0))
+                else:
+                    s += predictor.write_results_v2(i, predictor.tracker_outputs, predictor.results, (p, im, im0))
                 
                 predictor.txt_path = Path(predictor.txt_path)
                 
@@ -221,36 +220,36 @@ def run(args):
     predictor.run_callbacks('on_predict_end')
     
 
-def parse_opt():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--yolo-model', type=Path, default=WEIGHTS / 'yolov8n.pt', help='model.pt path(s)')
-    parser.add_argument('--reid-model', type=Path, default=WEIGHTS / 'mobilenetv2_x1_4_dukemtmcreid.pt')
-    parser.add_argument('--tracking-method', type=str, default='deepocsort', help='deepocsort, botsort, strongsort, ocsort, bytetrack')
-    parser.add_argument('--source', type=str, default='0', help='file/dir/URL/glob, 0 for webcam')  
-    parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[640], help='inference size h,w')
-    parser.add_argument('--conf', type=float, default=0.5, help='confidence threshold')
-    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    parser.add_argument('--show', action='store_true', help='display tracking video results')
-    parser.add_argument('--save', action='store_true', help='save video tracking results')
-    # # class 0 is person, 1 is bycicle, 2 is car... 79 is oven
-    parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --classes 0, or --classes 0 2 3')
-    parser.add_argument('--project', default=ROOT / 'runs' / 'track', help='save results to project/name')
-    parser.add_argument('--name', default='exp', help='save results to project/name')
-    parser.add_argument('--exists-ok', action='store_true', help='existing project/name ok, do not increment')
-    parser.add_argument('--half', action='store_true', help='use FP16 half-precision inference')
-    parser.add_argument('--vid-stride', type=int, default=1, help='video frame-rate stride')
-    parser.add_argument('--speed-method', type=str, default='3dtransform', help='speed estimation method')
-    parser.add_argument('--save-txt', action='store_true', help='save tracking results in a txt file')
-    opt = parser.parse_args()
-    print_args(vars(opt))
-    return opt
+# def parse_opt():
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument('--yolo-model', type=Path, default=WEIGHTS / 'yolov8n.pt', help='model.pt path(s)')
+#     parser.add_argument('--reid-model', type=Path, default=WEIGHTS / 'mobilenetv2_x1_4_dukemtmcreid.pt')
+#     parser.add_argument('--tracking-method', type=str, default='deepocsort', help='deepocsort, botsort, strongsort, ocsort, bytetrack')
+#     parser.add_argument('--source', type=str, default='0', help='file/dir/URL/glob, 0 for webcam')  
+#     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[640], help='inference size h,w')
+#     parser.add_argument('--conf', type=float, default=0.5, help='confidence threshold')
+#     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+#     parser.add_argument('--show', action='store_true', help='display tracking video results')
+#     parser.add_argument('--save', action='store_true', help='save video tracking results')
+#     # # class 0 is person, 1 is bycicle, 2 is car... 79 is oven
+#     parser.add_argument('--classes', nargs='+', type=int, help='filter by class: --classes 0, or --classes 0 2 3')
+#     parser.add_argument('--project', default=ROOT / 'runs' / 'track', help='save results to project/name')
+#     parser.add_argument('--name', default='exp', help='save results to project/name')
+#     parser.add_argument('--exists-ok', action='store_true', help='existing project/name ok, do not increment')
+#     parser.add_argument('--half', action='store_true', help='use FP16 half-precision inference')
+#     parser.add_argument('--vid-stride', type=int, default=1, help='video frame-rate stride')
+#     parser.add_argument('--speed-method', type=str, default='3dtransform', help='speed estimation method')
+#     parser.add_argument('--save-txt', action='store_true', help='save tracking results in a txt file')
+#     opt = parser.parse_args()
+#     print_args(vars(opt))
+#     return opt
 
 
 def track(args):
     run(vars(args))
 
 
-if __name__ == "__main__":
-    opt = parse_opt()
-    print(vars(opt))
-    main(opt)
+# if __name__ == "__main__":
+#     opt = parse_opt()
+#     print(vars(opt))
+#     main(opt)

@@ -30,6 +30,8 @@ def get_args():
     parser.add_argument('--speed-method', type=str, default='3dtransform', help='speed estimation method')
     parser.add_argument('--save-txt', action='store_true', help='save tracking results in a txt file')
 
+    parser.add_argument('--only-track', action='store_true', help='only save tracking results')
+
     # val 
     # parser.add_argument('--yolo-model', type=str, default='weights/yolov8n.pt', help='model.pt path(s)')
     # parser.add_argument('--reid-model', type=str, default='weights/mobilenetv2_x1_4_dukemtmcreid.pt')

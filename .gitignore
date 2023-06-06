@@ -5,7 +5,7 @@ env/
 __pycache__/
 cache
 # experiment results
-trash*.*
+*trash*
 runs/
 videos/
 samples/

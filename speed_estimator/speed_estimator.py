@@ -1,10 +1,10 @@
 import math
-from .transform_3d import * 
+from speed_estimator.transform_3d import * 
 
 
-def twopoints_speed(Location1, Location2):
+def twopoints_speed(location1, location2):
     #Euclidean Distance Formula
-    d_pixel = math.sqrt(math.pow(Location2[0] - Location1[0], 2) + math.pow(Location2[1] - Location1[1], 2))
+    d_pixel = math.sqrt(math.pow(location2[0] - location1[0], 2) + math.pow(location2[1] - location1[1], 2))
     # defining thr pixels per meter
     ppm = 8
     d_meters = d_pixel/ppm

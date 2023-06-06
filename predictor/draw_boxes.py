@@ -2,8 +2,8 @@ from collections import deque
 import numpy as np
 import math
 import cv2
-from .speed_estimator import twolines_speed, twopoints_speed, birdeyes_speed, transform_3d_speed
-
+# from .speed_estimator import twolines_speed, twopoints_speed, birdeyes_speed, transform_3d_speed
+from speed_estimator import twolines_speed, twopoints_speed, birdeyes_speed, transform_3d_speed
 
 palette = (2 ** 11 - 1, 2 ** 15 - 1, 2 ** 20 - 1)
 data_deque = {}
@@ -26,7 +26,8 @@ line2 = [(50, 400), (1200, 400)]
 
 
 # for birdeyes method
-transform_matrix_path = "./predictor/birdeyes/transform_matrix.npy"
+# transform_matrix_path = "./predictor/birdeyes/transform_matrix.npy"
+transform_matrix_path = "./speed_estimator/birdeyes/transform_matrix.npy"
 M = np.load(transform_matrix_path)
 M = np.array(M, np.float32)
 

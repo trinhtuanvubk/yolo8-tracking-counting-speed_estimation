@@ -29,28 +29,13 @@ FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # root dir
 WEIGHTS = ROOT / 'weights'
 
-# # plate_model = YOLO("weights/yolov8n_plate_dec.pt")
-# plate_model = YOLO("weights/yolov8n_plate_dec.pt")
-# # print(model)
-# overrides = model.overrides.copy()
-# model.predictor = TASK_MAP[model.task][3](overrides=overrides, _callbacks=model.callbacks)
-# predictor = DetectionPredictor_V2()
-# # combine default predictor args with custom, preferring custom
-# combined_args = {**predictor.args.__dict__, **args}
-# # overwrite default args
-# predictor.args = IterableSimpleNamespace(**combined_args)
 
-# predictor.write_MOT_results = write_MOT_results
-
-# if not predictor.model:
-#     predictor.setup_model(model=model.model, verbose=False)
-
-
-def detail(dets, im0, plate_model, plate_predictor):
+def tracker_details(tracker_outputs, im0, plate_model, plate_predictor, detail_tracker_outputs):
     h, w, _ = im0.shape
-    bbox_xyxy = dets[:, :4]
-    identities = dets[:, -3]
-    object_id = dets[:, -1]
+    bbox_xyxy = tracker_outputs[:, :4]
+    identities = tracker_outputs[:, -3]
+    print(identities)
+    object_id = tracker_outputs[:, -1]
     for i, box in enumerate(bbox_xyxy):
 
         x1, y1, x2, y2 = [int(i) for i in box]
@@ -61,17 +46,21 @@ def detail(dets, im0, plate_model, plate_predictor):
         # im = plate_predictor.preprocess(cropped_img)
         preds = plate_model.predict(cropped_img)
         print(preds[0].boxes.data)
-        plate_boxes = preds[0].boxes.data
-        if plate_boxes.shape[0]:
-            boxes = plate_boxes.squeeze().tolist()
-            boxes = boxes[:4]
-            boxes[0] = boxes[0] / _h * h
-            boxes[2] = boxes[2] / _h * h
-            boxes[1] = boxes[1] / _w * w
-            boxes[3] = boxes[3] / _w * w
+        plate_box = preds[0].boxes.data
+        if plate_box.shape[0]:
+            plate_box = plate_box.squeeze().tolist()
+            plate_box = plate_box[:4]
+            plate_box[0] = plate_box[0] / _h * h
+            plate_box[2] = plate_box[2] / _h * h
+            plate_box[1] = plate_box[1] / _w * w
+            plate_box[3] = plate_box[3] / _w * w
         else:
-            boxes = None
-        return boxes
+            plate_box = None
+        detail_tracker_outputs[i]["tracker_id"] = identities[i]
+        detail_tracker_outputs[i]["tracker_bboxes"] = box
+        detail_tracker_outputs[i]["object_id"] = object_id[i]
+        detail_tracker_outputs[i]["plate_box"] = plate_box
+ 
 
 
         # results = plate_predictor.model.postprocess(path, preds, im, im0s, plate_predictor)
@@ -224,8 +213,9 @@ def run(args):
                 predictor.tracker_outputs[i] = predictor.trackers[i].update(dets.cpu().detach(), im0)
                 print(predictor.tracker_outputs[i])
                
-                plate_boxes = detail(dets, im0, plate_model, plate_predictor)
-                print("plate: {}".format(plate_boxes))
+                tracker_details(predictor.tracker_outputs[i], im0, plate_model, plate_predictor, predictor.detail_tracker_outputs)
+                # print("plate: {}".format(plate_boxes))
+                print(predictor.detail_tracker_outputs)
                 print("------------------------------")
             predictor.results[i].speed = {
                 'preprocess': predictor.profilers[0].dt * 1E3 / n,

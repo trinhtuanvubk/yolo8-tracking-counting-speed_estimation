@@ -69,6 +69,8 @@ def detail(dets, im0, plate_model, plate_predictor):
             boxes[2] = boxes[2] / _h * h
             boxes[1] = boxes[1] / _w * w
             boxes[3] = boxes[3] / _w * w
+        else:
+            boxes = None
         return boxes
 
 

@@ -10,8 +10,10 @@ def get_args():
     parser = argparse.ArgumentParser()
 
     # senario
-    parser.add_argument('--scenario', type=str, default='track')
+    parser.add_argument('--scenario', type=str, default='main')
     parser.add_argument('--yolo-model', type=Path, default='weights/yolov8n.pt', help='model.pt path(s)')
+    parser.add_argument('--obj-yolo-model', type=Path, default='weights/yolov8n.pt', help='model.pt path(s)')
+    parser.add_argument('--plate-yolo-model', type=Path, default='weights/yolov8n_plate_dec.pt', help='model.pt path(s)')
     parser.add_argument('--reid-model', type=Path, default='weights/mobilenetv2_x1_4_dukemtmcreid.pt')
     parser.add_argument('--tracking-method', type=str, default='deepocsort', help='deepocsort, botsort, strongsort, ocsort, bytetrack')
     parser.add_argument('--source', type=str, default='0', help='file/dir/URL/glob, 0 for webcam')  
@@ -31,7 +33,7 @@ def get_args():
     parser.add_argument('--save-txt', action='store_true', help='save tracking results in a txt file')
 
     parser.add_argument('--only-track', action='store_true', help='only save tracking results')
-
+    parser.add_argument('--multi-tasks', action='store_true', help="multi models for multi tasks")
     # val 
     # parser.add_argument('--yolo-model', type=str, default='weights/yolov8n.pt', help='model.pt path(s)')
     # parser.add_argument('--reid-model', type=str, default='weights/mobilenetv2_x1_4_dukemtmcreid.pt')

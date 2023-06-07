@@ -29,10 +29,45 @@ FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # root dir
 WEIGHTS = ROOT / 'weights'
 
+# # plate_model = YOLO("weights/yolov8n_plate_dec.pt")
+# plate_model = YOLO("weights/yolov8n_plate_dec.pt")
+# # print(model)
+# overrides = model.overrides.copy()
+# model.predictor = TASK_MAP[model.task][3](overrides=overrides, _callbacks=model.callbacks)
+# predictor = DetectionPredictor_V2()
+# # combine default predictor args with custom, preferring custom
+# combined_args = {**predictor.args.__dict__, **args}
+# # overwrite default args
+# predictor.args = IterableSimpleNamespace(**combined_args)
+
+# predictor.write_MOT_results = write_MOT_results
+
+# if not predictor.model:
+#     predictor.setup_model(model=model.model, verbose=False)
+
+
+def detail(dets, im0, plate_model, plate_predictor):
+    bbox_xyxy = dets[:, :4]
+    identities = dets[:, -3]
+    object_id = dets[:, -1]
+    for i, box in enumerate(bbox_xyxy):
+        # print(box)
+        x1, y1, x2, y2 = [int(i) for i in box]
+        cropped_img = [im0[x1:x2, y1:y2, :]]
+        print(cropped_img[0].shape)
+        # im = plate_predictor.preprocess(cropped_img)
+        preds = plate_model.predict(cropped_img)
+        print(preds[0].boxes.data)
+        # results = plate_predictor.model.postprocess(path, preds, im, im0s, plate_predictor)
+        # print(results)
+
+    # return cropped_img
+
 
 def on_predict_start(predictor):
     predictor.trackers = []
     predictor.tracker_outputs = [None] * predictor.dataset.bs
+    predictor.detail_tracker_outputs = [{}] * predictor.dataset.bs
     predictor.args.tracking_config = \
         Path('trackers') /\
         predictor.args.tracking_method /\
@@ -73,7 +108,22 @@ def write_MOT_results(txt_path, results, frame_idx, i):
 
 @torch.no_grad()
 def run(args):
+    # ----------------------------
+    plate_model = YOLO("weights/yolov8n_plate_dec.pt")
+    # print(model)
+    overrides = plate_model.overrides.copy()
+    plate_model.plate_predictor = TASK_MAP[plate_model.task][3](overrides=overrides, _callbacks=plate_model.callbacks)
+    plate_predictor = DetectionPredictor_V2()
+    # combine default plate_predictor args with custom, preferring custom
+    combined_args = {**plate_predictor.args.__dict__, **args}
+    # overwrite default args
+    plate_predictor.args = IterableSimpleNamespace(**combined_args)
 
+    plate_predictor.write_MOT_results = write_MOT_results
+
+    if not plate_predictor.model:
+        plate_predictor.setup_model(model=plate_model.model, verbose=False)
+    # ----------------------------
 
     model = YOLO(args['yolo_model'] if 'v8' in str(args['yolo_model']) else 'yolov8n')
     # print(model)
@@ -126,8 +176,9 @@ def run(args):
         # Preprocess
         with predictor.profilers[0]:
             im = predictor.preprocess(im0s)
+            print(len(im0s))
             print("im ori shape:{}".format(im0s[0].shape))
-            print("im shape: {}".format(im.shape))
+            # print("im shape: {}".format(im.shape))
 
         # Inference
         with predictor.profilers[1]:
@@ -151,10 +202,14 @@ def run(args):
             with predictor.profilers[3]:
                 # get raw bboxes tensor
                 dets = predictor.results[i].boxes.data
+                print("-----------------------------")
                 print("box:{}".format(dets))
                 # get predictions
                 predictor.tracker_outputs[i] = predictor.trackers[i].update(dets.cpu().detach(), im0)
-                print(predictor.tracker_outputs[i])
+                # print(predictor.tracker_outputs[i])
+               
+                detail(dets, im0, plate_model, plate_predictor)
+                print("------------------------------")
             predictor.results[i].speed = {
                 'preprocess': predictor.profilers[0].dt * 1E3 / n,
                 'inference': predictor.profilers[1].dt * 1E3 / n,
@@ -183,7 +238,7 @@ def run(args):
                     predictor.MOT_txt_path = predictor.txt_path.parent / p.parent.name
                     
                 if predictor.tracker_outputs[i].size != 0:
-                    print(predictor.tracker_outputs[i])
+                    # print(predictor.tracker_outputs[i])
                     write_MOT_results(
                         predictor.MOT_txt_path,
                         predictor.results[i],
@@ -220,36 +275,9 @@ def run(args):
     predictor.run_callbacks('on_predict_end')
     return predictor.save_dir
     
-def continuous_results(args):
-    previous_save_dir = args.previous_save_dir
-    predictor = DetectionPredictor_V2()
-    # combine default predictor args with custom, preferring custom
-    combined_args = {**predictor.args.__dict__, **args}
-    # overwrite default args
-    predictor.args = IterableSimpleNamespace(**combined_args)
-    predictor.setup_source(predictor.args.source)
-    
-    predictor.args.imgsz = check_imgsz(predictor.args.imgsz, stride=model.model.stride, min_dim=2)  # check image size
-    predictor.save_dir = increment_path(Path(predictor.args.project) / predictor.args.name, exist_ok=predictor.args.exist_ok)
-    
-    # Check if save_dir/ label file exists
-    if predictor.args.save or predictor.args.save_txt:
-        (predictor.save_dir / 'labels' if predictor.args.save_txt else predictor.save_dir).mkdir(parents=True, exist_ok=True)
-    # Warmup model
-    if not predictor.done_warmup:
-        predictor.model.warmup(imgsz=(1 if predictor.model.pt or predictor.model.triton else predictor.dataset.bs, 3, *predictor.imgsz))
-        predictor.done_warmup = True
-    predictor.seen, predictor.windows, predictor.batch, predictor.profilers = 0, [], None, (ops.Profile(), ops.Profile(), ops.Profile(), ops.Profile())
-    predictor.add_callback('on_predict_start', on_predict_start)
-    predictor.run_callbacks('on_predict_start')
-
-    for frame_idx, batch in enumerate(predictor.dataset):
-        predictor.run_callbacks('on_predict_batch_start')
-        predictor.batch = batch
-        path, im0s, vid_cap, s = batch
 
 def track(args):
     save_dir = run(vars(args))
-    if args['multi-tasks']:
-        args['previous_save_dir'] = save_dir
+    # if args['multi-tasks']:
+    #     args['previous_save_dir'] = save_dir
 

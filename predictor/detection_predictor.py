@@ -9,7 +9,9 @@ from ultralytics.yolo.utils.checks import check_imgsz
 from ultralytics.yolo.utils.plotting import Annotator, colors, save_one_box
 
 # from .speed_estimator import twoline_speed, twopoint_speed
-from .draw_boxes import *
+# from .draw_boxes import *
+from .draw_boxes_dev import *
+
 # from .trash_draw_boxes_backup3 import *
 
 
@@ -98,6 +100,54 @@ class DetectionPredictor_V2(BasePredictor):
             object_id = outputs[:, -1]
             
             img = draw_boxes(im0, bbox_xyxy, self.model.names, self.args.speed_method, object_id,identities)
+
+            if self.args.save or self.args.show:  # Add bbox to image
+                self.plotted_img = img
+        # Write
+        if self.args.save_txt:
+            result.save_txt(f'{self.txt_path}.txt', save_conf=self.args.save_conf)
+        if self.args.save_crop:
+            result.save_crop(save_dir=self.save_dir / 'crops', file_name=self.data_path.stem)
+
+
+        return log_string
+
+    
+    def write_results_v3(self, idx, detail_tracker_outputs, results, batch):
+      
+        p, im, im0 = batch
+        # all_outputs = []
+        log_string = ""
+        if len(im.shape) == 3:
+            im = im[None]  # expand for batch dim
+        self.seen += 1
+        im0 = im0.copy()
+ 
+        if self.source_type.webcam or self.source_type.from_img:  # batch_size >= 1
+            log_string += f'{idx}: '
+            frame = self.dataset.count
+        else:
+            frame = getattr(self.dataset, 'frame', 0)
+
+        self.data_path = p
+        save_path = str(self.save_dir / p.name)  # im.jpg
+        self.txt_path = str(self.save_dir / 'labels' / p.stem) + ('' if self.dataset.mode == 'image' else f'_{frame}')
+        log_string += '%gx%g ' % im.shape[2:]  # print string
+        self.annotator = self.get_annotator(im0)
+
+
+        gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]
+        outputs = detail_tracker_outputs[idx]
+
+        print("outputs:{}".format(outputs))
+        result = results[idx]
+ 
+        if len(outputs) > 0:
+            # bbox_xyxy = outputs[:, :4]
+            # identities = outputs[:, -3]
+            # object_id = outputs[:, -1]
+            
+            img = draw_boxes(im0, outputs, self.model.names, self.args.speed_method)
 
             if self.args.save or self.args.show:  # Add bbox to image
                 self.plotted_img = img

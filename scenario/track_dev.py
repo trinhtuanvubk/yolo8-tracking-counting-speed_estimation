@@ -31,24 +31,22 @@ WEIGHTS = ROOT / 'weights'
 
 
 def tracker_details(tracker_outputs, im0, plate_model, plate_predictor, frame_idx):
-    detail_tracker_outputs = [{}]*len(tracker_outputs)
-    print(detail_tracker_outputs)
+    detail_tracker_outputs = []
+    # print(detail_tracker_outputs)
     h, w, _ = im0.shape
     bbox_xyxy = tracker_outputs[:, :4]
-    print(len(bbox_xyxy))
-    identities = tracker_outputs[:, -3]
+    # print(len(bbox_xyxy))
+    identities = tracker_outputs[:, 4]
     print(identities)
     object_id = tracker_outputs[:, -1]
     for i, box in enumerate(bbox_xyxy):
-
+        tracker_output = {}
         x1, y1, x2, y2 = [int(i) for i in box]
-        _h = x2-x1
-        _w = y2-y1
         cropped_img = [im0[x1:x2, y1:y2, :]]
         cropped_img_shape = cropped_img[0].shape
         print("crop:{}".format(cropped_img_shape))
         if 0 not in cropped_img_shape:
-        # im = plate_predictor.preprocess(cropped_img)
+            # im = plate_predictor.preprocess(cropped_img)
             preds = plate_model.predict(cropped_img, verbose=False)
             print(preds[0].boxes.data)
             plate_box = preds[0].boxes.data
@@ -57,20 +55,21 @@ def tracker_details(tracker_outputs, im0, plate_model, plate_predictor, frame_id
                     plate_box = plate_box[0]
                 plate_box = plate_box.squeeze().tolist()
                 plate_box = plate_box[:4]
-                plate_box[0] = plate_box[0] / _h * h
-                plate_box[2] = plate_box[2] / _h * h
-                plate_box[1] = plate_box[1] / _w * w
-                plate_box[3] = plate_box[3] / _w * w
+                plate_box[0] = plate_box[0] + x1
+                plate_box[2] = plate_box[2] + x1
+                plate_box[1] = plate_box[1] + y1
+                plate_box[3] = plate_box[3] + y1
             else:
                 plate_box = None
         else: 
             plate_box = None
-        detail_tracker_outputs[i]["frame_idx"] = frame_idx
-        detail_tracker_outputs[i]["identity"] = identities[i]
-        detail_tracker_outputs[i]["tracker_box"] = box
-        detail_tracker_outputs[i]["object_id"] = object_id[i]
-        detail_tracker_outputs[i]["plate_box"] = plate_box
-
+        tracker_output["frame_idx"] = frame_idx
+        tracker_output["identity"] = identities[i]
+        tracker_output["tracker_box"] = box
+        tracker_output["object_id"] = object_id[i]
+        tracker_output["plate_box"] = plate_box
+        detail_tracker_outputs.append(tracker_output)
+    print("detai:{}".format(detail_tracker_outputs))
     return detail_tracker_outputs
  
 
@@ -225,7 +224,7 @@ def run(args):
                
                 predictor.detail_tracker_outputs[i] = tracker_details(predictor.tracker_outputs[i], im0, plate_model, plate_predictor, frame_idx)
                 # print("plate: {}".format(plate_boxes))
-                print(predictor.detail_tracker_outputs)
+                print(predictor.detail_tracker_outputs[i])
                 print("------------------------------")
             predictor.results[i].speed = {
                 'preprocess': predictor.profilers[0].dt * 1E3 / n,

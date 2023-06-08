@@ -30,9 +30,12 @@ ROOT = FILE.parents[0]  # root dir
 WEIGHTS = ROOT / 'weights'
 
 
-def tracker_details(tracker_outputs, im0, plate_model, plate_predictor, detail_tracker_outputs):
+def tracker_details(tracker_outputs, im0, plate_model, plate_predictor, frame_idx):
+    detail_tracker_outputs = [{}]*len(tracker_outputs)
+    print(detail_tracker_outputs)
     h, w, _ = im0.shape
     bbox_xyxy = tracker_outputs[:, :4]
+    print(len(bbox_xyxy))
     identities = tracker_outputs[:, -3]
     print(identities)
     object_id = tracker_outputs[:, -1]
@@ -42,24 +45,33 @@ def tracker_details(tracker_outputs, im0, plate_model, plate_predictor, detail_t
         _h = x2-x1
         _w = y2-y1
         cropped_img = [im0[x1:x2, y1:y2, :]]
-        print(cropped_img[0].shape)
+        cropped_img_shape = cropped_img[0].shape
+        print("crop:{}".format(cropped_img_shape))
+        if 0 not in cropped_img_shape:
         # im = plate_predictor.preprocess(cropped_img)
-        preds = plate_model.predict(cropped_img)
-        print(preds[0].boxes.data)
-        plate_box = preds[0].boxes.data
-        if plate_box.shape[0]:
-            plate_box = plate_box.squeeze().tolist()
-            plate_box = plate_box[:4]
-            plate_box[0] = plate_box[0] / _h * h
-            plate_box[2] = plate_box[2] / _h * h
-            plate_box[1] = plate_box[1] / _w * w
-            plate_box[3] = plate_box[3] / _w * w
-        else:
+            preds = plate_model.predict(cropped_img, verbose=False)
+            print(preds[0].boxes.data)
+            plate_box = preds[0].boxes.data
+            if plate_box.shape[0]:
+                if plate_box.shape[0] > 1:
+                    plate_box = plate_box[0]
+                plate_box = plate_box.squeeze().tolist()
+                plate_box = plate_box[:4]
+                plate_box[0] = plate_box[0] / _h * h
+                plate_box[2] = plate_box[2] / _h * h
+                plate_box[1] = plate_box[1] / _w * w
+                plate_box[3] = plate_box[3] / _w * w
+            else:
+                plate_box = None
+        else: 
             plate_box = None
-        detail_tracker_outputs[i]["tracker_id"] = identities[i]
-        detail_tracker_outputs[i]["tracker_bboxes"] = box
+        detail_tracker_outputs[i]["frame_idx"] = frame_idx
+        detail_tracker_outputs[i]["identity"] = identities[i]
+        detail_tracker_outputs[i]["tracker_box"] = box
         detail_tracker_outputs[i]["object_id"] = object_id[i]
         detail_tracker_outputs[i]["plate_box"] = plate_box
+
+    return detail_tracker_outputs
  
 
 
@@ -72,6 +84,7 @@ def tracker_details(tracker_outputs, im0, plate_model, plate_predictor, detail_t
 def on_predict_start(predictor):
     predictor.trackers = []
     predictor.tracker_outputs = [None] * predictor.dataset.bs
+    print([predictor.tracker_outputs])
     predictor.detail_tracker_outputs = [{}] * predictor.dataset.bs
     predictor.args.tracking_config = \
         Path('trackers') /\
@@ -88,10 +101,7 @@ def on_predict_start(predictor):
             
         )
         predictor.trackers.append(tracker)
-        # if hasattr(predictor.trackers[i], 'model'):
-        #     if hasattr(predictor.trackers[i].model, 'warmup'):
-        #         predictor.trackers[i].model.warmup()
-                
+               
                 
 def write_MOT_results(txt_path, results, frame_idx, i):
     nr_dets = len(results.boxes)
@@ -208,12 +218,12 @@ def run(args):
                 # get raw bboxes tensor
                 dets = predictor.results[i].boxes.data
                 print("-----------------------------")
-                print("box:{}".format(dets))
+                # print("box:{}".format(dets))
                 # get predictions
                 predictor.tracker_outputs[i] = predictor.trackers[i].update(dets.cpu().detach(), im0)
                 print(predictor.tracker_outputs[i])
                
-                tracker_details(predictor.tracker_outputs[i], im0, plate_model, plate_predictor, predictor.detail_tracker_outputs)
+                predictor.detail_tracker_outputs[i] = tracker_details(predictor.tracker_outputs[i], im0, plate_model, plate_predictor, frame_idx)
                 # print("plate: {}".format(plate_boxes))
                 print(predictor.detail_tracker_outputs)
                 print("------------------------------")
@@ -233,7 +243,7 @@ def run(args):
                 if predictor.args.only_track:
                     s+= predictor.write_results(i, predictor.results, (p, im, im0))
                 else:
-                    s += predictor.write_results_v2(i, predictor.tracker_outputs, predictor.results, (p, im, im0))
+                    s += predictor.write_results_v3(i, predictor.detail_tracker_outputs, predictor.results, (p, im, im0))
                 
                 predictor.txt_path = Path(predictor.txt_path)
                 
@@ -285,6 +295,4 @@ def run(args):
 
 def track(args):
     save_dir = run(vars(args))
-    # if args['multi-tasks']:
-    #     args['previous_save_dir'] = save_dir
 

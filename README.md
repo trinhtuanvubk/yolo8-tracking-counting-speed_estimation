@@ -48,7 +48,7 @@ docker run --restart always -itd -v $(pwd):/yolo8-tracking --name <container-nam
 -To run: 
 
 ```
-$ python3 main.py --scenario track \
+$ python3 main.py --scenario main \
 --yolo-model weights/yolov8n.pt \
 --tracking-method bytetrack \
 --speed-method transform_3d \

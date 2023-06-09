@@ -32,12 +32,13 @@ class DetectionPredictor_V2(BasePredictor):
         results = []
         
         for i, pred in enumerate(preds):
-        
+            # print(pred)
             orig_img = orig_imgs[i] if isinstance(orig_imgs, list) else orig_imgs
             if not isinstance(orig_imgs, torch.Tensor):
                 pred[:, :4] = ops.scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape)
             path = self.batch[0]
             img_path = path[i] if isinstance(path, list) else path
+            # print(pred)
             results.append(Results(orig_img=orig_img, path=img_path, names=self.model.names, boxes=pred))
         return results
 
@@ -56,7 +57,6 @@ class DetectionPredictor_V2(BasePredictor):
         
         #15,6
         for i, pred in enumerate(preds):
-        
             orig_img = orig_imgs[i] if isinstance(orig_imgs, list) else orig_imgs
             if not isinstance(orig_imgs, torch.Tensor) and not preds_as_bboxes:
                 pred[:, :4] = ops.scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape)
@@ -64,6 +64,42 @@ class DetectionPredictor_V2(BasePredictor):
             img_path = path[i] if isinstance(path, list) else path
             results.append(Results(orig_img=orig_img, path=img_path, names=self.model.names, boxes=pred))
         return results
+    def _write_results(self, idx, results, batch):
+        """Write inference results to a file or directory."""
+        # print(idx)
+        # print(len(preds[0]))
+        p, im, _ = batch
+        log_string = ''
+        if len(im.shape) == 3:
+            im = im[None]  # expand for batch dim
+        self.seen += 1
+        if self.source_type.webcam or self.source_type.from_img:  # batch_size >= 1
+            log_string += f'{idx}: '
+            frame = self.dataset.count
+        else:
+            frame = getattr(self.dataset, 'frame', 0)
+        self.data_path = p
+        self.txt_path = str(self.save_dir / 'labels' / p.stem) + ('' if self.dataset.mode == 'image' else f'_{frame}')
+        log_string += '%gx%g ' % im.shape[2:]  # print string
+        result = results[idx]
+        # print(result)
+        log_string += result.verbose()
+
+        if self.args.save or self.args.show:  # Add bbox to image
+            plot_args = dict(line_width=self.args.line_width,
+                             boxes=self.args.boxes,
+                             conf=self.args.show_conf,
+                             labels=self.args.show_labels)
+            if not self.args.retina_masks:
+                plot_args['im_gpu'] = im[idx]
+            self.plotted_img = result.plot(**plot_args)
+        # Write
+        if self.args.save_txt:
+            result.save_txt(f'{self.txt_path}.txt', save_conf=self.args.save_conf)
+        if self.args.save_crop:
+            result.save_crop(save_dir=self.save_dir / 'crops', file_name=self.data_path.stem)
+
+        return log_string
 
     def write_results_v2(self, idx, tracker_outputs, results, batch):
       
@@ -97,7 +133,7 @@ class DetectionPredictor_V2(BasePredictor):
             identities = outputs[:, -3]
             object_id = outputs[:, -1]
             
-            img = draw_boxes(im0, bbox_xyxy, self.model.names, self.args.speed_method, object_id,identities)
+            img = draw_boxes(im0, bbox_xyxy, self.model.names, self.args.speed_method, object_id, identities)
 
             if self.args.save or self.args.show:  # Add bbox to image
                 self.plotted_img = img
@@ -110,3 +146,43 @@ class DetectionPredictor_V2(BasePredictor):
 
         return log_string
 
+
+    def write_results_v3(self, idx, detail_tracker_outputs, results, batch):
+      
+        p, im, im0 = batch
+        # all_outputs = []
+        log_string = ""
+        if len(im.shape) == 3:
+            im = im[None]  # expand for batch dim
+        self.seen += 1
+        im0 = im0.copy()
+ 
+        if self.source_type.webcam or self.source_type.from_img:  # batch_size >= 1
+            log_string += f'{idx}: '
+            frame = self.dataset.count
+        else:
+            frame = getattr(self.dataset, 'frame', 0)
+
+        self.data_path = p
+        save_path = str(self.save_dir / p.name)  # im.jpg
+        self.txt_path = str(self.save_dir / 'labels' / p.stem) + ('' if self.dataset.mode == 'image' else f'_{frame}')
+        log_string += '%gx%g ' % im.shape[2:]  # print string
+        self.annotator = self.get_annotator(im0)
+
+
+        gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]
+        outputs = detail_tracker_outputs[idx]
+        result = results[idx]
+ 
+        if len(outputs) > 0:
+            img = draw_boxes(im0, outputs, self.model.names, self.args.speed_method)
+            if self.args.save or self.args.show:  # Add bbox to image
+                self.plotted_img = img
+        # Write
+        if self.args.save_txt:
+            result.save_txt(f'{self.txt_path}.txt', save_conf=self.args.save_conf)
+        if self.args.save_crop:
+            result.save_crop(save_dir=self.save_dir / 'crops', file_name=self.data_path.stem)
+
+
+        return log_string

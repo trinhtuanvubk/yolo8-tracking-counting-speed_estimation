@@ -7,7 +7,6 @@ import numpy as np
 import cv2
 
 from trackers import create_tracker
-# import trackers
 from predictor.detection_predictor import DetectionPredictor_V2
 
 
@@ -19,9 +18,7 @@ from ultralytics.yolo.engine.results import Boxes
 from ultralytics.yolo.data.utils import VID_FORMATS
 
 from .multi_yolo_backend import MultiYolo
-# from super_gradients.training import models
-# from super_gradients.common.object_names import Models
-# from super_gradients.training.utils.checkpoint_utils import load_checkpoint_to_model
+
 
 
 WEIGHTS = Path(SETTINGS['weights_dir'])
@@ -30,25 +27,21 @@ ROOT = FILE.parents[0]  # root dir
 WEIGHTS = ROOT / 'weights'
 
 
-def tracker_details(tracker_outputs, im0, plate_model, plate_predictor, frame_idx):
-    detail_tracker_outputs = [{}]*len(tracker_outputs)
-    print(detail_tracker_outputs)
-    h, w, _ = im0.shape
+def tracker_details(tracker_outputs, im0, plate_model, frame_idx):
+    detail_tracker_outputs = []
+    # h, w, _ = im0.shape
     bbox_xyxy = tracker_outputs[:, :4]
-    print(len(bbox_xyxy))
     identities = tracker_outputs[:, -3]
-    print(identities)
     object_id = tracker_outputs[:, -1]
     for i, box in enumerate(bbox_xyxy):
-
+        tracker_output = {}
         x1, y1, x2, y2 = [int(i) for i in box]
-        _h = x2-x1
-        _w = y2-y1
-        cropped_img = [im0[x1:x2, y1:y2, :]]
+        x2 = x1+640 if x2-x1<640 else x2
+        y2 = y1+640 if y2-y1<640 else y2
+        cropped_img = [im0[y1:y2, x1:x2, :]]
         cropped_img_shape = cropped_img[0].shape
         print("crop:{}".format(cropped_img_shape))
         if 0 not in cropped_img_shape:
-        # im = plate_predictor.preprocess(cropped_img)
             preds = plate_model.predict(cropped_img, verbose=False)
             print(preds[0].boxes.data)
             plate_box = preds[0].boxes.data
@@ -57,28 +50,22 @@ def tracker_details(tracker_outputs, im0, plate_model, plate_predictor, frame_id
                     plate_box = plate_box[0]
                 plate_box = plate_box.squeeze().tolist()
                 plate_box = plate_box[:4]
-                plate_box[0] = plate_box[0] / _h * h
-                plate_box[2] = plate_box[2] / _h * h
-                plate_box[1] = plate_box[1] / _w * w
-                plate_box[3] = plate_box[3] / _w * w
+                plate_box[0] = plate_box[0] + x1
+                plate_box[2] = plate_box[2] + x1
+                plate_box[1] = plate_box[1] + y1
+                plate_box[3] = plate_box[3] + y1
             else:
                 plate_box = None
         else: 
             plate_box = None
-        detail_tracker_outputs[i]["frame_idx"] = frame_idx
-        detail_tracker_outputs[i]["identity"] = identities[i]
-        detail_tracker_outputs[i]["tracker_box"] = box
-        detail_tracker_outputs[i]["object_id"] = object_id[i]
-        detail_tracker_outputs[i]["plate_box"] = plate_box
-
+        tracker_output["frame_idx"] = frame_idx
+        tracker_output["identity"] = identities[i]
+        tracker_output["tracker_box"] = box
+        tracker_output["object_id"] = object_id[i]
+        tracker_output["plate_box"] = plate_box
+        detail_tracker_outputs.append(tracker_output)
     return detail_tracker_outputs
- 
 
-
-        # results = plate_predictor.model.postprocess(path, preds, im, im0s, plate_predictor)
-        # print(results)
-
-    # return cropped_img
 
 
 def on_predict_start(predictor):
@@ -126,18 +113,26 @@ def run(args):
     # ----------------------------
     plate_model = YOLO("weights/yolov8n_plate_dec.pt")
     # print(model)
-    overrides = plate_model.overrides.copy()
-    plate_model.plate_predictor = TASK_MAP[plate_model.task][3](overrides=overrides, _callbacks=plate_model.callbacks)
-    plate_predictor = DetectionPredictor_V2()
-    # combine default plate_predictor args with custom, preferring custom
-    combined_args = {**plate_predictor.args.__dict__, **args}
-    # overwrite default args
-    plate_predictor.args = IterableSimpleNamespace(**combined_args)
+    # overrides = plate_model.overrides.copy()
+    # plate_model.plate_predictor = TASK_MAP[plate_model.task][3](overrides=overrides, _callbacks=plate_model.callbacks)
+    # plate_predictor = DetectionPredictor_V2()
+    # # combine default plate_predictor args with custom, preferring custom
+    # combined_args = {**plate_predictor.args.__dict__, **args}
+    # # overwrite default args
+    # plate_predictor.args = IterableSimpleNamespace(**combined_args)
 
-    plate_predictor.write_MOT_results = write_MOT_results
+    # plate_predictor.write_MOT_results = write_MOT_results
 
-    if not plate_predictor.model:
-        plate_predictor.setup_model(model=plate_model.model, verbose=False)
+    # if not plate_predictor.model:
+    #     plate_predictor.setup_model(model=plate_model.model, verbose=False)
+
+    # plate_predictor.seen, plate_predictor.windows, plate_predictor.batch, plate_predictor.profilers = 0, [], None, (ops.Profile(), ops.Profile(), ops.Profile(), ops.Profile())
+
+    # plate_model = MultiYolo(
+    #     model=plate_predictor.model if 'v8' in str(args['plate_yolo_model']) else args['plate_yolo_model'],
+    #     device=plate_predictor.device,
+    #     args=plate_predictor.args
+    # )
     # ----------------------------
 
     model = YOLO(args['yolo_model'] if 'v8' in str(args['yolo_model']) else 'yolov8n')
@@ -222,8 +217,8 @@ def run(args):
                 # get predictions
                 predictor.tracker_outputs[i] = predictor.trackers[i].update(dets.cpu().detach(), im0)
                 print(predictor.tracker_outputs[i])
-               
-                predictor.detail_tracker_outputs[i] = tracker_details(predictor.tracker_outputs[i], im0, plate_model, plate_predictor, frame_idx)
+                if predictor.tracker_outputs[i] != []:
+                    predictor.detail_tracker_outputs[i] = tracker_details(predictor.tracker_outputs[i], im0, plate_model, frame_idx)
                 # print("plate: {}".format(plate_boxes))
                 print(predictor.detail_tracker_outputs)
                 print("------------------------------")
@@ -293,6 +288,6 @@ def run(args):
     return predictor.save_dir
     
 
-def track(args):
+def track_plate(args):
     save_dir = run(vars(args))
 

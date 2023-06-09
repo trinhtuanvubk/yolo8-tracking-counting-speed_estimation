@@ -145,20 +145,24 @@ def get_direction(point1, point2):
         direction_str += ""
 
     return direction_str
-def draw_boxes(img, bbox, names, speed_method, object_id, identities=None, offset=(0, 0)):
+def draw_boxes(img, outputs, names, speed_method, offset=(0, 0)):
+    object_id = [i["object_id"] for i in outputs]
     cv2.line(img, line1[0], line1[1], (46,162,112), 3)
     if speed_method=='twolines':
         cv2.line(img, line2[0], line2[1], (46,162,112), 3)
 
     height, width, _ = img.shape
     # remove tracked point from buffer if object is lost
+    identities = [i["identity"] for i in outputs]
     for key in list(data_deque):
         if key not in identities:
             data_deque.pop(key)
 
-    for i, box in enumerate(bbox):
+    for i, output in enumerate(outputs):
         # print(box)
-        x1, y1, x2, y2 = [int(i) for i in box]
+        box = output["tracker_box"]
+        plate_box = output["plate_box"]
+        x1, y1, x2, y2 = [int(i) for i in output["tracker_box"]]
         x1 += offset[0]
         x2 += offset[0]
         y1 += offset[1]
@@ -243,6 +247,9 @@ def draw_boxes(img, bbox, names, speed_method, object_id, identities=None, offse
         except:
             pass
         UI_box(box, img, label=label, color=color, line_thickness=2)
+        if plate_box is not None:
+            print('DRAWWWWWWWWWWWWW')
+            UI_box(plate_box, img, label="pl", color=color, line_thickness=2)
         # draw trail
         for i in range(1, len(data_deque[id])):
             # check if on buffer value is none

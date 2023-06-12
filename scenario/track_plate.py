@@ -39,12 +39,12 @@ def tracker_details(tracker_outputs, im0, plate_model, frame_idx):
         x1, y1, x2, y2 = [int(i) for i in box]
         x2 = x1+min_size if x2-x1<min_size else x2
         y2 = y1+min_size if y2-y1<min_size else y2
-        cropped_img = [im0[y1:y2, x1:x2, :]]
-        cropped_img_shape = cropped_img[0].shape
-        print("crop:{}".format(cropped_img_shape))
+        cropped_obj_img = [im0[y1:y2, x1:x2, :]]
+        cropped_obj_img_shape = cropped_obj_img[0].shape
+        print("crop:{}".format(cropped_obj_img_shape))
         # check zero shape in cropped image
         if 0 not in cropped_img_shape:
-            preds = plate_model.predict(cropped_img, verbose=False)
+            preds = plate_model.predict(cropped_obj_img, verbose=False)
             print(preds[0].boxes.data)
             plate_box = preds[0].boxes.data
             # check zero shape in plate boxes
@@ -70,6 +70,7 @@ def tracker_details(tracker_outputs, im0, plate_model, frame_idx):
         tracker_output["tracker_box"] = box
         tracker_output["object_id"] = object_id[i]
         tracker_output["plate_box"] = plate_box
+        tracker_output["speed"] = None
         detail_tracker_outputs.append(tracker_output)
     return detail_tracker_outputs
 

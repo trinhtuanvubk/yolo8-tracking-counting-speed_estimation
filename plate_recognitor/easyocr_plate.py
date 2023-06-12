@@ -1,13 +1,13 @@
 import easyocr
-
+import cv2
 reader = easyocr.Reader(['en'], gpu=False)
 
 
-def easyocr_plate(img, plate_box, cropped_obj_img):
+def easyocr_plate_rec(cropped_obj_img, plate_box):
     x1, y1, x2, y2 = [int(i) for i in plate_box]
-    img = img[y1:y2,x1:x2]
-
-    gray = cv2.cvtColor(img , cv2.COLOR_RGB2GRAY)
+    plate_img = cropped_obj_img[y1:y2,x1:x2]
+    print(plate_img.shape)
+    gray = cv2.cvtColor(plate_img , cv2.COLOR_RGB2GRAY)
     #gray = cv2.resize(gray, None, fx = 3, fy = 3, interpolation = cv2.INTER_CUBIC)
     result = reader.readtext(gray)
     text = ""

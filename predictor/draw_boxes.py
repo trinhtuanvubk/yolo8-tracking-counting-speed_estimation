@@ -248,8 +248,8 @@ def draw_boxes(img, outputs, names, speed_method, offset=(0, 0)):
             pass
         UI_box(box, img, label=label, color=color, line_thickness=2)
         if plate_box is not None:
-            print('DRAWWWWWWWWWWWWW')
-            UI_box(plate_box, img, label="pl", color=color, line_thickness=2)
+            # print('DRAWWWWWWWWWWWWW')
+            UI_box(plate_box, img, label="pl: {}".format(output["number_plate"]), color=color, line_thickness=2)
         # draw trail
         for i in range(1, len(data_deque[id])):
             # check if on buffer value is none

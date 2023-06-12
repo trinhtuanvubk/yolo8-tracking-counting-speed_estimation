@@ -43,12 +43,12 @@ docker run --restart always -itd -v $(pwd):/yolo8-tracking --name <container-nam
 
 </details>
 
-## Tracking, Counting, Speed Estimation
+## Pineline 1: Vehicles Tracking (Counting, Speed Estimation)
 
 -To run: 
 
 ```
-$ python3 main.py --scenario main \
+$ python3 main.py --scenario track \
 --yolo-model weights/yolov8n.pt \
 --tracking-method bytetrack \
 --speed-method transform_3d \
@@ -60,11 +60,40 @@ $ python3 main.py --scenario main \
 ```
 
 - Flag:
-    - `--scenario`: select method(`track`, `eval`, `evolve`). Just support track now
+    - `--scenario`: select method(`track`, `track_plate`).
     - `--yolo-model`: select model (`yolov8n`, `yolo_nas_n`, `yolox_n`, `yolov8n-seg`, `yolov8n-pose`) or other yolo models.
     - `--tracking-method`: select tracking method (`bytetrack`, `deepocsort`, `strongsort`, `ocsort`, `botsort`  )
     - `--speed-method`: select speed estimation method (`twopoints`, `twolines`, `birdeyes`, `transform_3d`)
-    - `--source`: select source type (`0`, `img.jpg`, `vid.mp4`, `path/`, `path/*.jpg`, `'https://youtu.be/Zgi9g1ksQHc'`, `'rtsp://example.com/media.mp4'`) corresponding to webcam, image, video, directory, glob, youtube, rtsp-rtmp-http stream
+    - `--source`: select source type (`0`, `img.jpg`, `vid.mp4`, `path/`, `path/*.jpg`, `'https://youtu.be/Zgi9g1ksQHc'`, `'rtsp://example.com/media.mp4'`) corresponding to `webcam`, `image`, `video`, `directory`, `glob`, `youtube`, `rtsp-rtmp-http stream`
+    - `--class`: select subset of classes corresponding index of classes in COCO dataset
+    - `--name`: the ouput directory name 
+    - `--save`: flag to save output image/video
+    - `--save-txt`: flag to write the result as .txt file
+
+## Pineline 2: Vehicles Tracking (Counting, Speed Estimation) + Plate (Detection, Recognition)
+
+-To run: 
+
+```
+$ python3 main.py --scenario track_plate \
+--obj-yolo-model weights/yolov8n.pt \
+--plate-yolo-model weights/yolov8n_plate_dec.pt \
+--tracking-method bytetrack \
+--speed-method transform_3d \
+--source test_data/test1.mp4 \
+--classes 0 1 2 3 5 6 7 \
+--name test1_line \
+--save \
+--save-txt \
+```
+
+- Flag:
+    - `--scenario`: select method(`track`, `eval`, `evolve`). Just support track now
+    - `--obj-yolo-model`: select model (`yolov8n`, `yolo_nas_n`, `yolox_n`, `yolov8n-seg`, `yolov8n-pose`) or other yolo models.
+    - `--plate-yolo-model`: select plate detection model.
+    - `--tracking-method`: select tracking method (`bytetrack`, `deepocsort`, `strongsort`, `ocsort`, `botsort`  )
+    - `--speed-method`: select speed estimation method (`twopoints`, `twolines`, `birdeyes`, `transform_3d`)
+    - `--source`: select source type (`0`, `img.jpg`, `vid.mp4`, `path/`, `path/*.jpg`, `'https://youtu.be/Zgi9g1ksQHc'`, `'rtsp://example.com/media.mp4'`) corresponding to `webcam`, `image`, `video`, `directory`, `glob`, `youtube`, `rtsp-rtmp-http stream`
     - `--class`: select subset of classes corresponding index of classes in COCO dataset
     - `--name`: the ouput directory name 
     - `--save`: flag to save output image/video

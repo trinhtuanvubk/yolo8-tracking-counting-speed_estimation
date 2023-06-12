@@ -28,28 +28,33 @@ WEIGHTS = ROOT / 'weights'
 
 
 def tracker_details(tracker_outputs, im0, plate_model, frame_idx):
+    # min image size for best detection
+    min_size = 640
     detail_tracker_outputs = []
-    # h, w, _ = im0.shape
     bbox_xyxy = tracker_outputs[:, :4]
     identities = tracker_outputs[:, -3]
     object_id = tracker_outputs[:, -1]
     for i, box in enumerate(bbox_xyxy):
         tracker_output = {}
         x1, y1, x2, y2 = [int(i) for i in box]
-        x2 = x1+640 if x2-x1<640 else x2
-        y2 = y1+640 if y2-y1<640 else y2
+        x2 = x1+min_size if x2-x1<min_size else x2
+        y2 = y1+min_size if y2-y1<min_size else y2
         cropped_img = [im0[y1:y2, x1:x2, :]]
         cropped_img_shape = cropped_img[0].shape
         print("crop:{}".format(cropped_img_shape))
+        # check zero shape in cropped image
         if 0 not in cropped_img_shape:
             preds = plate_model.predict(cropped_img, verbose=False)
             print(preds[0].boxes.data)
             plate_box = preds[0].boxes.data
+            # check zero shape in plate boxes
             if plate_box.shape[0]:
+                # get first box if having more than one box
                 if plate_box.shape[0] > 1:
                     plate_box = plate_box[0]
                 plate_box = plate_box.squeeze().tolist()
                 plate_box = plate_box[:4]
+                # map to original image
                 plate_box[0] = plate_box[0] + x1
                 plate_box[2] = plate_box[2] + x1
                 plate_box[1] = plate_box[1] + y1
@@ -58,6 +63,8 @@ def tracker_details(tracker_outputs, im0, plate_model, frame_idx):
                 plate_box = None
         else: 
             plate_box = None
+
+        # details of output
         tracker_output["frame_idx"] = frame_idx
         tracker_output["identity"] = identities[i]
         tracker_output["tracker_box"] = box
@@ -71,7 +78,6 @@ def tracker_details(tracker_outputs, im0, plate_model, frame_idx):
 def on_predict_start(predictor):
     predictor.trackers = []
     predictor.tracker_outputs = [None] * predictor.dataset.bs
-    print([predictor.tracker_outputs])
     predictor.detail_tracker_outputs = [{}] * predictor.dataset.bs
     predictor.args.tracking_config = \
         Path('trackers') /\
@@ -84,8 +90,7 @@ def on_predict_start(predictor):
             predictor.args.tracking_config,
             predictor.args.reid_model,
             predictor.args.device,
-            predictor.args.half,
-            
+            predictor.args.half, 
         )
         predictor.trackers.append(tracker)
                
@@ -110,33 +115,12 @@ def write_MOT_results(txt_path, results, frame_idx, i):
 
 @torch.no_grad()
 def run(args):
-    # ----------------------------
-    plate_model = YOLO("weights/yolov8n_plate_dec.pt")
-    # print(model)
-    # overrides = plate_model.overrides.copy()
-    # plate_model.plate_predictor = TASK_MAP[plate_model.task][3](overrides=overrides, _callbacks=plate_model.callbacks)
-    # plate_predictor = DetectionPredictor_V2()
-    # # combine default plate_predictor args with custom, preferring custom
-    # combined_args = {**plate_predictor.args.__dict__, **args}
-    # # overwrite default args
-    # plate_predictor.args = IterableSimpleNamespace(**combined_args)
-
-    # plate_predictor.write_MOT_results = write_MOT_results
-
-    # if not plate_predictor.model:
-    #     plate_predictor.setup_model(model=plate_model.model, verbose=False)
-
-    # plate_predictor.seen, plate_predictor.windows, plate_predictor.batch, plate_predictor.profilers = 0, [], None, (ops.Profile(), ops.Profile(), ops.Profile(), ops.Profile())
-
-    # plate_model = MultiYolo(
-    #     model=plate_predictor.model if 'v8' in str(args['plate_yolo_model']) else args['plate_yolo_model'],
-    #     device=plate_predictor.device,
-    #     args=plate_predictor.args
-    # )
-    # ----------------------------
-
+    
+    # define plate dectection model
+    plate_model = YOLO(args['plate_yolo_model'])
+    
+    # define normal yolo model
     model = YOLO(args['yolo_model'] if 'v8' in str(args['yolo_model']) else 'yolov8n')
-    # print(model)
     overrides = model.overrides.copy()
     model.predictor = TASK_MAP[model.task][3](overrides=overrides, _callbacks=model.callbacks)
 
@@ -161,6 +145,7 @@ def run(args):
     # Check if save_dir/ label file exists
     if predictor.args.save or predictor.args.save_txt:
         (predictor.save_dir / 'labels' if predictor.args.save_txt else predictor.save_dir).mkdir(parents=True, exist_ok=True)
+    
     # Warmup model
     if not predictor.done_warmup:
         predictor.model.warmup(imgsz=(1 if predictor.model.pt or predictor.model.triton else predictor.dataset.bs, 3, *predictor.imgsz))
@@ -213,13 +198,13 @@ def run(args):
                 # get raw bboxes tensor
                 dets = predictor.results[i].boxes.data
                 print("-----------------------------")
-                # print("box:{}".format(dets))
                 # get predictions
                 predictor.tracker_outputs[i] = predictor.trackers[i].update(dets.cpu().detach(), im0)
                 print(predictor.tracker_outputs[i])
+                # get tracker details
                 if predictor.tracker_outputs[i] != []:
                     predictor.detail_tracker_outputs[i] = tracker_details(predictor.tracker_outputs[i], im0, plate_model, frame_idx)
-                # print("plate: {}".format(plate_boxes))
+
                 print(predictor.detail_tracker_outputs)
                 print("------------------------------")
             predictor.results[i].speed = {
